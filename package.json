@@ -1,0 +1,45 @@
+{
+  "name": "vaultbot",
+  "version": "1.0.0",
+  "description": "A secure fintech platform that helps users build consistent saving habits by automatically setting aside money from their linked bank accounts, making it easier to achieve financial goals and improve long-term financial well-being.",
+  "main": "index.ts",
+  "private": false,
+  "author": {
+    "name": "Samuel Obanla",
+    "email": "obanlasamuelolakunle@gmail.com"
+  },
+  "keywords": [
+    "Fintech",
+    "concurrent",
+    "Automated-savings",
+    "Personal-finance",
+    "Open-banking",
+    "financial-goals"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "dev:api": "npm run dev --prefix apps/api",
+    "dev:web": "npm run dev --prefix apps/web",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "build:api": "npm run build --prefix apps/api",
+    "build:web": "npm run build --prefix apps/web",
+    "build": "concurrently \"npm run build:api\" \"npm run build:web\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.6.0",
+    "eslint-plugin-import-x": "^4.16.0",
+    "eslint-plugin-sonarjs": "^4.1.0",
+    "eslint-plugin-unicorn": "^61.0.0",
+    "globals": "^16.0.0",
+    "prettier": "3.9.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1"
+  },
+  "dependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
