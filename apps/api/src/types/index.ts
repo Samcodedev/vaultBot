@@ -4,7 +4,8 @@ import type { UserPayload } from '../../../../types/auth.type';
 
 export interface UserRecord {
   id: string;
-  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
   phoneNumber: string | null;
   createdAt: Date;

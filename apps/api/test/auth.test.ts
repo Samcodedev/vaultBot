@@ -31,7 +31,8 @@ const request = supertest(app);
 
 const VALID_USER = {
   id: 'test-uuid-1234',
-  name: VALID_USER_DETAILS.name,
+  firstName: VALID_USER_DETAILS.firstName,
+  lastName: VALID_USER_DETAILS.lastName,
   email: VALID_USER_DETAILS.email,
   password: VALID_USER_DETAILS.bcryptPassword,
   phoneNumber: null,
@@ -42,7 +43,8 @@ const VALID_USER = {
 };
 
 const REGISTER_BODY = {
-  name: VALID_USER_DETAILS.name,
+  firstName: VALID_USER_DETAILS.firstName,
+  lastName: VALID_USER_DETAILS.lastName,
   email: VALID_USER_DETAILS.email,
   password: VALID_USER_DETAILS.password,
 };
@@ -66,8 +68,10 @@ describe(`POST ${API}/register`, () => {
     const res = await request.post(`${API}/register`).send(REGISTER_BODY);
 
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('email', VALID_USER.email);
-    expect(res.body).not.toHaveProperty('password');
+    expect(res.body.success).toBe(true);
+    expect(res.body).toHaveProperty('token');
+    expect(res.body.user).toHaveProperty('email', VALID_USER.email);
+    expect(res.body.user).not.toHaveProperty('password');
   });
 
   it('should return 409 when email is already registered', async () => {
@@ -163,7 +167,12 @@ describe(`GET ${API}/`, () => {
   beforeAll(async () => {
     const jwt = await import('jsonwebtoken');
     validToken = jwt.sign(
-      { id: VALID_USER.id, name: VALID_USER.name, email: VALID_USER.email },
+      {
+        id: VALID_USER.id,
+        firstName: VALID_USER.firstName,
+        lastName: VALID_USER.lastName,
+        email: VALID_USER.email,
+      },
       process.env.JWT_SECRET as string,
       { expiresIn: '1h' },
     );

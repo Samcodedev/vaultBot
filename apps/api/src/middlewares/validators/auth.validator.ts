@@ -3,12 +3,18 @@ import { body } from 'express-validator';
 import { validate } from './validate.middleware';
 
 export const registerUserValidator = [
-  body('name')
+  body('firstName')
     .trim()
     .notEmpty()
-    .withMessage('Name is required')
-    .isLength({ min: 5, max: 50 })
-    .withMessage('Name must be between 5 and 50 characters'),
+    .withMessage('First name is required')
+    .isLength({ min: 2, max: 30 })
+    .withMessage('First name must be between 2 and 30 characters'),
+  body('lastName')
+    .trim()
+    .notEmpty()
+    .withMessage('Last name is required')
+    .isLength({ min: 2, max: 30 })
+    .withMessage('Last name must be between 2 and 30 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('password')
     .isLength({ min: 6 })
@@ -34,8 +40,3 @@ export const loginUserValidator = [
   body('password').notEmpty().withMessage('Password is required'),
   validate,
 ];
-
-// export const getUserValidator = [
-//   param('id').matches(uuidPattern).withMessage('User ID must be a valid UUID'),
-//   validate
-// ];

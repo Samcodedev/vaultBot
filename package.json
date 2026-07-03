@@ -23,10 +23,12 @@
     "format": "prettier --write .",
     "dev:api": "npm run dev --prefix apps/api",
     "dev:web": "npm run dev --prefix apps/web",
+    "dev:api-test": "npm run test --prefix apps/api",
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
     "build:api": "npm run build --prefix apps/api",
     "build:web": "npm run build --prefix apps/web",
-    "build": "concurrently \"npm run build:api\" \"npm run build:web\""
+    "build": "concurrently \"npm run build:api\" \"npm run build:web\"",
+    "CICD": "concurrently \"npm run format\" \"npm run lint\" \"npm run dev:api-test\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
