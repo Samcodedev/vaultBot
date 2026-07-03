@@ -25,3 +25,6 @@ export const CONFLICT = {
   ERROR: 'Conflict',
   STATUS_CODE: 409,
 };
+
+export const SAVING_TYPE = ['daily', 'weekly', 'monthly', 'yearly'] as const;
+export const SAVING_PLAN = ['fantasy-savings', 'vault'] as const;

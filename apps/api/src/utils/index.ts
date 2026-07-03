@@ -6,4 +6,6 @@ export {
   UNAUTHORIZED,
   FORBIDDEN,
   CONFLICT,
+  SAVING_TYPE,
+  SAVING_PLAN,
 } from './constant.utils.js';
