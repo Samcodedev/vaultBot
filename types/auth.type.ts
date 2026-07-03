@@ -1,5 +1,6 @@
 export interface RegisterUserInput {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   phoneNumber?: string | null;
@@ -12,13 +13,15 @@ export interface LoginUserInput {
 
 export interface UserPayload {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
 }
 
 export interface UserResponse {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phoneNumber: string | null;
   createdAt: Date;

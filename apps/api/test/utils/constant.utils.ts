@@ -1,6 +1,7 @@
 export const VALID_USER_DETAILS = {
   email: 'test@example.com',
-  name: 'John Doe',
+  firstName: 'John',
+  lastName: 'Doe',
   password: 'Password1!',
   bcryptPassword: '$2b$10$hashedPasswordPlaceholder',
   phoneNumber: '08064434940',

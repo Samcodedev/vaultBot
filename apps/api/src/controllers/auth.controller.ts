@@ -9,7 +9,8 @@ import { INTERNAL_SERVER_ERROR, UNAUTHORIZED, CONFLICT, NOT_FOUND, logger } from
 
 const formatUser = (user: UserRecord): UserResponse => ({
   id: user.id,
-  name: user.name || '',
+  firstName: user.firstName || '',
+  lastName: user.lastName || '',
   email: user.email,
   phoneNumber: user.phoneNumber,
   createdAt: user.createdAt,
@@ -18,7 +19,7 @@ const formatUser = (user: UserRecord): UserResponse => ({
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, phoneNumber }: RegisterUserInput = req.body;
+    const { firstName, lastName, email, password, phoneNumber }: RegisterUserInput = req.body;
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -35,7 +36,8 @@ export const registerUser = async (req: Request, res: Response) => {
 
     const user = await prisma.user.create({
       data: {
-        name,
+        firstName,
+        lastName,
         email,
         password: hashedPassword,
         phoneNumber: phoneNumber ?? null,
@@ -44,7 +46,8 @@ export const registerUser = async (req: Request, res: Response) => {
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         phoneNumber: true,
         accountNumber: true,
@@ -54,7 +57,21 @@ export const registerUser = async (req: Request, res: Response) => {
       },
     });
 
-    return res.status(201).json(user);
+    const payload = {
+      id: user.id,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      email: user.email,
+    };
+
+    const token = generateToken(payload);
+
+    return res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      token,
+      user,
+    });
   } catch (error) {
     logger.error('Error in registerUser:', error);
     return res
@@ -71,7 +88,8 @@ export const loginUser = async (req: Request, res: Response) => {
       where: { email },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         password: true,
         phoneNumber: true,
@@ -96,7 +114,8 @@ export const loginUser = async (req: Request, res: Response) => {
 
     const payload = {
       id: user.id,
-      name: user.name || '',
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
       email: user.email,
     };
 
@@ -106,6 +125,7 @@ export const loginUser = async (req: Request, res: Response) => {
       success: true,
       message: 'Login successful',
       token,
+      user: formatUser(user),
     });
   } catch (error) {
     logger.error('Error in loginUser:', error);
@@ -130,7 +150,8 @@ export const getUser = async (req: AuthenticatedRequest, res: Response) => {
       where: { id },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         phoneNumber: true,
         createdAt: true,
@@ -163,7 +184,8 @@ export const verifyUser = async (req: Request, res: Response) => {
       where: { email },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         phoneNumber: true,
         createdAt: true,
