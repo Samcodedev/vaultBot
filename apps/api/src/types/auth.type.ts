@@ -6,4 +6,4 @@ export interface UserRecord {
   createdAt: Date;
   updatedAt: Date;
   password?: string;
-};
+}
