@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+    branches: [main, production]
+
+jobs:
+  # ── Job 1: Lint & Format ──────────────────────────────────────────────────
+  lint-and-format:
+    name: Prettier & ESLint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install API dependencies
+        run: npm ci --prefix apps/api
+
+      - name: Install web dependencies
+        run: npm ci --prefix apps/web
+
+      - name: Check formatting (Prettier)
+        run: npx prettier --check .
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ── Job 2: Tests ──────────────────────────────────────────────────────────
+  test:
+    name: Jest Tests
+    runs-on: ubuntu-latest
+
+    env:
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: 1h
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install API dependencies
+        run: npm ci --prefix apps/api
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: apps/api
+
+      - name: Run tests
+        run: npm test
+        working-directory: apps/api
