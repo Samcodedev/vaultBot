@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+
 import type { UserPayload } from '../../../../types/auth.type';
 
 export interface UserRecord {

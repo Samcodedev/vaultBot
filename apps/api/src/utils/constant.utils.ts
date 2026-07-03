@@ -5,10 +5,13 @@ export const INTERNAL_SERVER_ERROR = {
 export const NOT_FOUND = {
   ERROR: 'Not found',
   STATUS_CODE: 404,
+  USER_NOT_FOUND: 'User not found',
+  EMAIL_NOT_FOUND: 'Email not found',
 };
 export const BAD_REQUEST = {
   ERROR: 'Bad request',
   STATUS_CODE: 400,
+  INVALID_EMAIL: 'Invalid email',
 };
 export const UNAUTHORIZED = {
   ERROR: 'Unauthorized',

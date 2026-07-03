@@ -1,4 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
+
 import { UserPayload } from '../../../../types';
 
 export const generateToken = (payload: UserPayload): string => {

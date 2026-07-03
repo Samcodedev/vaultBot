@@ -1,10 +1,8 @@
 import { Router } from 'express';
+
 import { getUser, loginUser, registerUser, verifyUser } from '../controllers/auth.controller.js';
-import {
-  loginUserValidator,
-  registerUserValidator,
-} from '../middlewares/validators/index.js';
 import { authenticateUser } from '../middlewares/index.js';
+import { loginUserValidator, registerUserValidator } from '../middlewares/validators/index.js';
 
 const router = Router();
 

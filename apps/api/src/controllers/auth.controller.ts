@@ -1,15 +1,11 @@
 import type { Request, Response } from 'express';
-import type { AuthenticatedRequest } from '../types/index.js';
+
+import type { LoginUserInput, RegisterUserInput, UserResponse } from '../../../../types/index.js';
 import prisma from '../config/db.js';
-import type {
-  LoginUserInput,
-  RegisterUserInput,
-  UserPayload,
-  UserResponse,
-} from '../../../../types/index.js';
-import type { UserRecord } from '../types';
-import { INTERNAL_SERVER_ERROR, UNAUTHORIZED, CONFLICT, NOT_FOUND, logger } from '../utils';
 import { generateToken, comparePasswords, hashPassword } from '../services';
+import type { UserRecord } from '../types';
+import type { AuthenticatedRequest } from '../types/index.js';
+import { INTERNAL_SERVER_ERROR, UNAUTHORIZED, CONFLICT, NOT_FOUND, logger } from '../utils';
 
 const formatUser = (user: UserRecord): UserResponse => ({
   id: user.id,
@@ -87,7 +83,7 @@ export const loginUser = async (req: Request, res: Response) => {
     if (!user) {
       return res
         .status(NOT_FOUND.STATUS_CODE)
-        .json({ error: NOT_FOUND.ERROR, message: 'User not found' });
+        .json({ error: NOT_FOUND.ERROR, message: NOT_FOUND.USER_NOT_FOUND });
     }
 
     const isPasswordValid = await comparePasswords(password, user.password);
@@ -145,7 +141,7 @@ export const getUser = async (req: AuthenticatedRequest, res: Response) => {
     if (!user) {
       return res
         .status(NOT_FOUND.STATUS_CODE)
-        .json({ error: NOT_FOUND.ERROR, message: 'User not found' });
+        .json({ error: NOT_FOUND.ERROR, message: NOT_FOUND.USER_NOT_FOUND });
     }
 
     return res
@@ -165,22 +161,27 @@ export const verifyUser = async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, name: true, email: true, phoneNumber: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     if (!user) {
       return res
         .status(NOT_FOUND.STATUS_CODE)
-        .json({ error: NOT_FOUND.ERROR, message: 'User not found' });
+        .json({ error: NOT_FOUND.ERROR, message: NOT_FOUND.USER_NOT_FOUND });
     }
 
     // send a mail to the user with a verification link or code (not implemented here)
 
-    return res
-      .status(200)
-      .json({ 
-        success: true, 
-        message: 'Check your email for verification instructions',
+    return res.status(200).json({
+      success: true,
+      message: 'Check your email for verification instructions',
     });
   } catch (error) {
     logger.error('Error in verifyUser:', error);

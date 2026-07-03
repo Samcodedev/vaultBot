@@ -1,7 +1,6 @@
-import { body, param } from 'express-validator';
-import { validate } from './validate.middleware';
+import { body } from 'express-validator';
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { validate } from './validate.middleware';
 
 export const registerUserValidator = [
   body('name')
@@ -27,13 +26,13 @@ export const registerUserValidator = [
     .optional({ values: 'falsy' })
     .isMobilePhone('en-NG')
     .withMessage('Please provide a valid phone number'),
-  validate
+  validate,
 ];
 
 export const loginUserValidator = [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('password').notEmpty().withMessage('Password is required'),
-  validate
+  validate,
 ];
 
 // export const getUserValidator = [
