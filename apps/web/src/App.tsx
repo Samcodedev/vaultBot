@@ -9,6 +9,7 @@ import {
   CreatePlanPage,
   TransactionsPage,
 } from './pages/index.ts';
+import { ProtectedRoute } from '@/components';
 
 function App() {
   return (
@@ -17,10 +18,38 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/plans" element={<PlansPage />} />
-        <Route path="/dashboard/create" element={<CreatePlanPage />} />
-        <Route path="/dashboard/transactions" element={<TransactionsPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/plans"
+          element={
+            <ProtectedRoute>
+              <PlansPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/create"
+          element={
+            <ProtectedRoute>
+              <CreatePlanPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/transactions"
+          element={
+            <ProtectedRoute>
+              <TransactionsPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
