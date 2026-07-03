@@ -15,3 +15,4 @@ export const validate = (req: Request, res: Response, next: NextFunction): void 
 };
 
 export * from './auth.validator.js';
+export * from './plan.validator.js';

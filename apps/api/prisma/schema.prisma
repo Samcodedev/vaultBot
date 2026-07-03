@@ -18,4 +18,34 @@ model User {
   accountId     String   @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  plans         Plan[]
 }
+
+model Plan {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Common fields
+  name           String
+  description    String?
+  savingType     String   // daily | weekly | monthly | yearly
+  savingPlan     String   // vault | fantasy-savings
+  amount         Float
+  targetAmount   Float
+  currentBalance Float    @default(0)
+  startDate      DateTime
+  endDate        DateTime
+  debitSchedule  String   // e.g. "08:00 AM"
+  nextDebitDate  DateTime
+
+  // Fantasy-savings specific fields
+  teamId          Int?
+  teamName        String?
+  nextFixtureId   Int?
+  nextFixtureDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
