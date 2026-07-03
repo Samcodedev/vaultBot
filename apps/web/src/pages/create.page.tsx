@@ -3,8 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Calendar, Repeat, Target, PenLine } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Calendar,
+  Repeat,
+  Target,
+  PenLine,
+  Trophy,
+  Landmark,
+} from 'lucide-react';
 import type { SavingsPlan as Plan } from '@/types';
+import { teams } from '../../../../data/team.data';
 
 const savingTypes = [
   { value: 'daily', label: 'Daily', desc: 'Save every day' },
@@ -17,7 +28,10 @@ const steps = ['Goal', 'Amount', 'Frequency', 'Schedule', 'Review'];
 
 export default function CreatePlan() {
   const navigate = useNavigate();
+  const [savingPlanSelected, setSavingPlanSelected] = useState(false);
   const [step, setStep] = useState(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [teamSearch, setTeamSearch] = useState('');
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -26,14 +40,35 @@ export default function CreatePlan() {
     savingType: 'monthly',
     savingDuration: '',
     debitScheduleTime: '10:00 AM',
+    savingPlan: 'vault',
+    teamName: '',
+    teamLogo: '',
   });
 
   const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
+  const selectPlanType = (type: 'vault' | 'fantasy-savings') => {
+    setForm((f) => ({
+      ...f,
+      savingPlan: type,
+      teamName: type === 'vault' ? '' : f.teamName,
+      teamLogo: type === 'vault' ? '' : f.teamLogo,
+      title: type === 'vault' ? '' : f.teamName ? `${f.teamName} Savings` : '',
+    }));
+    setSavingPlanSelected(true);
+    setStep(0);
+  };
+
   const next = () => {
-    if (step === 0 && !form.title) {
-      toast.error('Please enter a title');
-      return;
+    if (step === 0) {
+      if (form.savingPlan === 'fantasy-savings' && !form.teamName) {
+        toast.error('Please select a football team');
+        return;
+      }
+      if (!form.title) {
+        toast.error('Please enter a title');
+        return;
+      }
     }
     if (step === 1 && (!form.targetAmount || Number(form.targetAmount) <= 0)) {
       toast.error('Enter a valid target amount');
@@ -46,7 +81,13 @@ export default function CreatePlan() {
     setStep((s) => Math.min(s + 1, 4));
   };
 
-  const back = () => setStep((s) => Math.max(s - 1, 0));
+  const back = () => {
+    if (step === 0) {
+      setSavingPlanSelected(false);
+    } else {
+      setStep((s) => Math.max(s - 1, 0));
+    }
+  };
 
   const handleSubmit = () => {
     const saved = localStorage.getItem('vb_plans');
@@ -60,6 +101,9 @@ export default function CreatePlan() {
       targetAmount: Number(form.targetAmount),
       savingType: form.savingType,
       savingDuration: form.savingDuration,
+      savingPlan: form.savingPlan as 'vault' | 'fantasy-savings',
+      teamName: form.savingPlan === 'fantasy-savings' ? form.teamName : undefined,
+      teamLogo: form.savingPlan === 'fantasy-savings' ? form.teamLogo : undefined,
     };
 
     const updatedPlans = [...plans, newPlan];
@@ -75,245 +119,482 @@ export default function CreatePlan() {
     exit: { opacity: 0, x: -30 },
   };
 
+  // Filtered teams list for custom dropdown
+  const filteredTeams = teams.filter((t) =>
+    t.name.toLowerCase().includes(teamSearch.toLowerCase()),
+  );
+
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-lg">
-        <h1 className="text-2xl font-extrabold text-foreground mb-2 tracking-tight">
-          Create Savings Plan
-        </h1>
-
-        {/* Step indicator */}
-        <div className="flex items-center gap-1 mb-8">
-          {steps.map((s, i) => (
-            <div key={s} className="flex items-center gap-1">
-              <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                  i <= step
-                    ? 'gradient-primary text-white shadow-card'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {i < step ? <Check size={14} /> : i + 1}
-              </div>
-              {i < steps.length - 1 && (
-                <div
-                  className={`h-0.5 w-6 rounded transition-colors ${
-                    i < step ? 'bg-primary' : 'bg-muted'
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
+      <div
+        className={`mx-auto transition-all duration-300 ${savingPlanSelected ? 'max-w-lg' : 'max-w-2xl'}`}
+      >
+        {/* Initial Plan Type Selection (Not in flow wizard yet) */}
         <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.25 }}
-            className="rounded-2xl border border-border bg-card p-6 shadow-card"
-          >
-            {step === 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
-                  <PenLine size={18} />
-                  <span>What are you saving for?</span>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) => update('title', e.target.value)}
-                    placeholder="e.g. Vacation Fund"
-                    className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Description (optional)
-                  </label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => update('description', e.target.value)}
-                    placeholder="A short note about this goal"
-                    className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
-                    rows={3}
-                  />
-                </div>
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
-                  <Target size={18} />
-                  <span>How much do you want to save?</span>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Target Amount (₦)
-                  </label>
-                  <input
-                    type="number"
-                    value={form.targetAmount}
-                    onChange={(e) => update('targetAmount', e.target.value)}
-                    placeholder="100000"
-                    className="w-full text-xl font-extrabold rounded-xl border border-border bg-muted/20 px-4 py-3 text-foreground focus:outline-none focus:border-primary mt-1"
-                  />
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
-                  <Repeat size={18} />
-                  <span>How often should we save?</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {savingTypes.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => update('savingType', t.value)}
-                      className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
-                        form.savingType === t.value
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                          : 'border-border bg-card hover:border-primary/30'
-                      }`}
-                    >
-                      <p className="text-sm font-bold text-card-foreground">{t.label}</p>
-                      <p className="text-xs text-muted-foreground mt-1 font-semibold">{t.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
-                  <Calendar size={18} />
-                  <span>Set the schedule</span>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Amount per {form.savingType} debit (₦)
-                  </label>
-                  <input
-                    type="number"
-                    value={form.amount}
-                    onChange={(e) => update('amount', e.target.value)}
-                    placeholder="5000"
-                    className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Save until
-                  </label>
-                  <input
-                    type="date"
-                    value={form.savingDuration}
-                    onChange={(e) => update('savingDuration', e.target.value)}
-                    className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold focus:outline-none focus:border-primary mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Debit time
-                  </label>
-                  <input
-                    type="text"
-                    value={form.debitScheduleTime}
-                    onChange={(e) => update('debitScheduleTime', e.target.value)}
-                    placeholder="10:00 AM"
-                    className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
-                  />
-                </div>
-              </div>
-            )}
-
-            {step === 4 && (
-              <div className="space-y-3">
-                <h3 className="font-bold text-card-foreground text-sm border-b border-border pb-1.5">
-                  Review your plan
-                </h3>
-                <div className="rounded-xl bg-muted/50 border border-border/40 p-4 space-y-2.5 text-xs font-semibold">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Goal</span>
-                    <span className="font-bold text-card-foreground">{form.title}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Target</span>
-                    <span className="font-bold text-card-foreground">
-                      ₦{Number(form.targetAmount).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Frequency</span>
-                    <span className="font-bold text-card-foreground capitalize">
-                      {form.savingType}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Debit amount</span>
-                    <span className="font-bold text-card-foreground">
-                      ₦{Number(form.amount).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Until</span>
-                    <span className="font-bold text-card-foreground">{form.savingDuration}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Debit time</span>
-                    <span className="font-bold text-card-foreground">{form.debitScheduleTime}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed mt-2.5">
-                  We will debit <strong>₦{Number(form.amount).toLocaleString()}</strong>{' '}
-                  {form.savingType} until{' '}
-                  {form.savingDuration ? new Date(form.savingDuration).toLocaleDateString() : '—'}.
+          {!savingPlanSelected ? (
+            <motion.div
+              key="plan-type-select"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-6 mt-4"
+            >
+              <div className="text-center">
+                <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+                  Choose a Savings Plan
+                </h1>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                  Select a method to automate your savings and reach your goals.
                 </p>
               </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
 
-        <div className="flex items-center justify-between mt-6">
-          <button
-            type="button"
-            onClick={back}
-            disabled={step === 0}
-            className="px-4 py-2 border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          {step < 4 ? (
-            <button
-              type="button"
-              onClick={next}
-              className="px-4.5 py-2.5 rounded-xl gradient-primary text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1"
-            >
-              Next <ArrowRight size={14} />
-            </button>
+              <div className="flex flex-col sm:flex-row gap-5 mt-8 justify-center">
+                {/* Vault Savings Option */}
+                <button
+                  type="button"
+                  onClick={() => selectPlanType('vault')}
+                  className="group flex-1 rounded-2xl border border-border bg-card p-6 text-left transition-all duration-300 cursor-pointer flex flex-col justify-between hover:border-primary hover:shadow-card hover:-translate-y-0.5 active:scale-[0.98]"
+                >
+                  <div>
+                    <div className="p-4 rounded-2xl bg-primary/10 text-primary w-fit group-hover:scale-105 transition-transform duration-300 shrink-0 mb-4">
+                      <Landmark size={28} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-extrabold text-card-foreground">Vault Savings</p>
+                      <ArrowRight
+                        size={16}
+                        className="text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 font-semibold leading-relaxed">
+                      Standard automated savings. Set aside a fixed amount at your preferred
+                      frequency (daily, weekly, monthly) until your target is met.
+                    </p>
+                  </div>
+                </button>
+
+                {/* Fantasy Savings Option */}
+                <button
+                  type="button"
+                  onClick={() => selectPlanType('fantasy-savings')}
+                  className="group flex-1 rounded-2xl border border-border bg-card p-6 text-left transition-all duration-300 cursor-pointer flex flex-col justify-between hover:border-emerald-500 hover:shadow-card hover:-translate-y-0.5 active:scale-[0.98]"
+                >
+                  <div>
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 text-emerald-500 w-fit group-hover:scale-105 transition-transform duration-300 shrink-0 mb-4">
+                      <Trophy size={28} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-extrabold text-card-foreground">Fantasy Savings</p>
+                      <ArrowRight
+                        size={16}
+                        className="text-emerald-500 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 font-semibold leading-relaxed">
+                      Link savings to your favorite Premier League team. Set an amount to save
+                      automatically based on their match fixtures schedule.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </motion.div>
           ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1"
+            /* Multi-step saving plan wizard flow */
+            <motion.div
+              key="saving-plan-wizard"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <Check size={14} /> Create Plan
-            </button>
+              <div className="flex items-center justify-between mb-2">
+                <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+                  New {form.savingPlan === 'fantasy-savings' ? 'Fantasy' : 'Vault'} Saving Plan
+                </h1>
+                <button
+                  onClick={() => setSavingPlanSelected(false)}
+                  className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                >
+                  Change Plan Type
+                </button>
+              </div>
+
+              {/* Step indicator */}
+              <div className="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
+                {steps.map((s, i) => (
+                  <div key={s} className="flex items-center gap-1 shrink-0">
+                    <div
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                        i <= step
+                          ? form.savingPlan === 'fantasy-savings'
+                            ? 'bg-emerald-500 text-white shadow-card'
+                            : 'gradient-primary text-white shadow-card'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {i < step ? <Check size={14} /> : i + 1}
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold ${i === step ? 'text-foreground' : 'text-muted-foreground'}`}
+                    >
+                      {s}
+                    </span>
+                    {i < steps.length - 1 && (
+                      <div
+                        className={`h-0.5 w-4 rounded transition-colors ${
+                          i < step
+                            ? form.savingPlan === 'fantasy-savings'
+                              ? 'bg-emerald-500'
+                              : 'bg-primary'
+                            : 'bg-muted'
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={step}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.25 }}
+                  className="rounded-2xl border border-border bg-card p-6 shadow-card"
+                >
+                  {step === 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
+                        <PenLine size={18} />
+                        <span>Set your savings goal details</span>
+                      </div>
+
+                      {/* Custom dropdown with logo, name, and search input for Fantasy Savings */}
+                      {form.savingPlan === 'fantasy-savings' ? (
+                        <div className="mb-4">
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                            Select Premier League Team
+                          </label>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                              className="w-full flex items-center justify-between text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-3 text-foreground font-semibold focus:outline-none focus:border-primary cursor-pointer text-left"
+                            >
+                              {form.teamName ? (
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={form.teamLogo}
+                                    alt=""
+                                    className="h-6 w-6 object-contain"
+                                  />
+                                  <span>{form.teamName}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground/60">Choose a team...</span>
+                              )}
+                              <ArrowRight size={16} className="rotate-90 text-muted-foreground" />
+                            </button>
+
+                            {isDropdownOpen && (
+                              <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-border bg-card shadow-lg p-2 max-h-60 overflow-y-auto space-y-1.5">
+                                {/* Search Filter Input */}
+                                <div className="sticky top-0 bg-card pb-1.5 border-b border-border/40">
+                                  <input
+                                    type="text"
+                                    value={teamSearch}
+                                    onChange={(e) => setTeamSearch(e.target.value)}
+                                    placeholder="Search team..."
+                                    className="w-full text-xs rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-foreground focus:outline-none focus:border-primary font-semibold"
+                                    onClick={(e) => e.stopPropagation()} // Prevent dropdown closing when clicking search
+                                  />
+                                </div>
+
+                                <div className="pt-1.5 space-y-1">
+                                  {filteredTeams.length > 0 ? (
+                                    filteredTeams.map((t) => (
+                                      <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => {
+                                          update('teamName', t.name);
+                                          update('teamLogo', t.logo);
+                                          update('title', `${t.name} Savings`);
+                                          setIsDropdownOpen(false);
+                                          setTeamSearch('');
+                                        }}
+                                        className="w-full flex items-center gap-3 px-2.5 py-2 text-xs font-semibold text-foreground hover:bg-primary/10 rounded-lg text-left transition-colors cursor-pointer"
+                                      >
+                                        <img
+                                          src={t.logo}
+                                          alt=""
+                                          className="h-6 w-6 object-contain shrink-0"
+                                        />
+                                        <span>{t.name}</span>
+                                      </button>
+                                    ))
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground p-2 text-center font-medium">
+                                      No teams found
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Title input only for Vault Savings */
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            value={form.title}
+                            onChange={(e) => update('title', e.target.value)}
+                            placeholder="e.g. Vacation Fund"
+                            className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Description (optional)
+                        </label>
+                        <textarea
+                          value={form.description}
+                          onChange={(e) => update('description', e.target.value)}
+                          placeholder="A short note about this goal"
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 1 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
+                        <Target size={18} />
+                        <span>How much do you want to save?</span>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Target Amount (₦)
+                        </label>
+                        <input
+                          type="number"
+                          value={form.targetAmount}
+                          onChange={(e) => update('targetAmount', e.target.value)}
+                          placeholder="100000"
+                          className="w-full text-xl font-extrabold rounded-xl border border-border bg-muted/20 px-4 py-3 text-foreground focus:outline-none focus:border-primary mt-1"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 2 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
+                        <Repeat size={18} />
+                        <span>How often should we save?</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {savingTypes.map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => update('savingType', t.value)}
+                            className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
+                              form.savingType === t.value
+                                ? form.savingPlan === 'fantasy-savings'
+                                  ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500'
+                                  : 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'border-border bg-card hover:border-primary/30'
+                            }`}
+                          >
+                            <p className="text-sm font-bold text-card-foreground">{t.label}</p>
+                            <p className="text-xs text-muted-foreground mt-1 font-semibold">
+                              {t.desc}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 3 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
+                        <Calendar size={18} />
+                        <span>Set the schedule</span>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Amount per {form.savingType} debit (₦)
+                        </label>
+                        <input
+                          type="number"
+                          value={form.amount}
+                          onChange={(e) => update('amount', e.target.value)}
+                          placeholder="5000"
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Save until
+                        </label>
+                        <input
+                          type="date"
+                          value={form.savingDuration}
+                          onChange={(e) => update('savingDuration', e.target.value)}
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold focus:outline-none focus:border-primary mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Debit time
+                        </label>
+                        <input
+                          type="text"
+                          value={form.debitScheduleTime}
+                          onChange={(e) => update('debitScheduleTime', e.target.value)}
+                          placeholder="10:00 AM"
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 4 && (
+                    <div className="space-y-3">
+                      <h3 className="font-bold text-card-foreground text-sm border-b border-border pb-1.5">
+                        Review your plan
+                      </h3>
+                      <div className="rounded-xl bg-muted/50 border border-border/40 p-4 space-y-2.5 text-xs font-semibold">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Plan Type</span>
+                          <span className="font-bold text-card-foreground capitalize">
+                            {form.savingPlan.replace('-', ' ')}
+                          </span>
+                        </div>
+                        {form.savingPlan === 'fantasy-savings' && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Linked Team</span>
+                            <span className="font-bold text-card-foreground flex items-center gap-1.5">
+                              {form.teamLogo && (
+                                <img
+                                  src={form.teamLogo}
+                                  alt=""
+                                  className="h-5 w-5 object-contain"
+                                />
+                              )}
+                              {form.teamName}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Goal</span>
+                          <span className="font-bold text-card-foreground">{form.title}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Target</span>
+                          <span className="font-bold text-card-foreground">
+                            ₦{Number(form.targetAmount).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Frequency</span>
+                          <span className="font-bold text-card-foreground capitalize">
+                            {form.savingPlan === 'fantasy-savings'
+                              ? `Match Day (${form.savingType})`
+                              : form.savingType}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Debit amount</span>
+                          <span className="font-bold text-card-foreground">
+                            ₦{Number(form.amount).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Until</span>
+                          <span className="font-bold text-card-foreground">
+                            {form.savingDuration}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Debit time</span>
+                          <span className="font-bold text-card-foreground">
+                            {form.debitScheduleTime}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-2.5">
+                        {form.savingPlan === 'fantasy-savings' ? (
+                          <>
+                            We will automatically save{' '}
+                            <strong>₦{Number(form.amount).toLocaleString()}</strong> on each match
+                            day for <strong>{form.teamName}</strong> (first debit starts on next
+                            fixture matchday, configured {form.savingType}) until{' '}
+                            {form.savingDuration
+                              ? new Date(form.savingDuration).toLocaleDateString()
+                              : '—'}
+                            .
+                          </>
+                        ) : (
+                          <>
+                            We will debit <strong>₦{Number(form.amount).toLocaleString()}</strong>{' '}
+                            {form.savingType} until{' '}
+                            {form.savingDuration
+                              ? new Date(form.savingDuration).toLocaleDateString()
+                              : '—'}
+                            .
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="flex items-center justify-between mt-6">
+                <button
+                  type="button"
+                  onClick={back}
+                  className="px-4 py-2 border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-card"
+                >
+                  <ArrowLeft size={14} /> Back
+                </button>
+                {step < 4 ? (
+                  <button
+                    type="button"
+                    onClick={next}
+                    className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1 ${
+                      form.savingPlan === 'fantasy-savings' ? 'bg-emerald-500' : 'gradient-primary'
+                    }`}
+                  >
+                    Next <ArrowRight size={14} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <Check size={14} /> Create Plan
+                  </button>
+                )}
+              </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
       </div>
     </DashboardLayout>
   );
