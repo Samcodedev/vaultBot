@@ -2,6 +2,7 @@ import type { SavingsPlan } from '@/types';
 import { Link } from 'react-router-dom';
 
 export default function SavingsCard({
+  id,
   title,
   currentBalance,
   targetAmount,
@@ -59,7 +60,7 @@ export default function SavingsCard({
             <span>of {formatCurrency(targetAmount)}</span>
           </div>
           <Link
-            to={`/dashboard/plans/${title}`}
+            to={`/dashboard/plans/${id}`}
             className="text-primary text-xs mt-2.5 block font-bold hover:underline"
           >
             View Plan

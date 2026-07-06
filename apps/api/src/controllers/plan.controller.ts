@@ -2,7 +2,7 @@ import type { Response } from 'express';
 
 import { teams } from '../../../../data/team.data.js';
 import prisma from '../config/db.js';
-import { calculateNextDebitDate } from '../services/calculations.service.js';
+import { calculateNextDebitDate, calculateEndDate } from '../services/calculations.service.js';
 import { getNextFixture } from '../services/fantasy.service.js';
 import type { AuthenticatedRequest } from '../types/index.js';
 import {
@@ -11,20 +11,19 @@ import {
   NOT_FOUND,
   UNAUTHORIZED,
   logger,
+  SAVING_TYPE,
 } from '../utils/index.js';
 
 export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
-      name,
+      title,
       description,
       savingType,
       savingPlan,
       amount,
-      startDate,
-      endDate,
-      debitSchedule,
       targetAmount,
+      debitScheduleTime,
       teamName,
     } = req.body;
 
@@ -37,20 +36,38 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
 
     const { id: userId } = req.user;
 
+    const startDate = new Date();
+    const amountVal = parseFloat(amount.toString());
+    const targetAmountVal = parseFloat(targetAmount.toString());
+
     if (savingPlan === 'vault') {
-      const nextDebitDate = calculateNextDebitDate(savingType, debitSchedule, new Date(startDate));
+      const debitSchedule = debitScheduleTime;
+      const nextDebitDate = calculateNextDebitDate(
+        savingType as (typeof SAVING_TYPE)[number],
+        debitSchedule,
+        startDate,
+      );
+
+      if (isNaN(nextDebitDate.getTime())) {
+        return res.status(BAD_REQUEST.STATUS_CODE).json({
+          success: false,
+          message: 'Invalid debit schedule time format. Please use "HH:MM AM/PM" format.',
+        });
+      }
+
+      const endDate = calculateEndDate(savingType, targetAmountVal, amountVal, startDate);
 
       const newPlan = await prisma.plan.create({
         data: {
           userId,
-          name,
+          name: title,
           description,
           savingType,
           savingPlan,
-          amount: parseFloat(amount),
-          targetAmount: parseFloat(targetAmount),
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
+          amount: amountVal,
+          targetAmount: targetAmountVal,
+          startDate,
+          endDate,
           debitSchedule,
           nextDebitDate,
         },
@@ -75,7 +92,10 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(201).json({
         success: true,
         message: 'Vault plan created successfully',
-        data: newPlan,
+        data: {
+          ...newPlan,
+          title: newPlan.name,
+        },
       });
     }
 
@@ -103,17 +123,21 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
 
       const nextDebitDate = new Date(nextFixture.date);
 
+      const endDate = calculateEndDate(savingType, targetAmountVal, amountVal, startDate);
+
+      const debitSchedule = 'Match Day';
+
       const newPlan = await prisma.plan.create({
         data: {
           userId,
-          name,
+          name: title,
           description,
           savingType,
           savingPlan,
-          amount: parseFloat(amount),
-          targetAmount: parseFloat(targetAmount),
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
+          amount: amountVal,
+          targetAmount: targetAmountVal,
+          startDate,
+          endDate,
           debitSchedule,
           nextDebitDate,
           teamId,
@@ -148,6 +172,7 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
         message: `Fantasy-savings plan created! Next debit on match day: ${resolvedTeamName} vs ${nextFixture.home === resolvedTeamName ? nextFixture.away : nextFixture.home} (${nextFixture.league})`,
         data: {
           ...newPlan,
+          title: newPlan.name,
           nextFixture,
         },
       });

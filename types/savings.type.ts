@@ -9,6 +9,9 @@ export interface SavingsPlan {
   savingPlan?: 'vault' | 'fantasy-savings';
   teamName?: string;
   teamLogo?: string;
+  amount?: number;
+  debitScheduleTime?: string;
+  nextDebitDate?: string | Date;
 }
 
 export interface SavingsTransaction {
