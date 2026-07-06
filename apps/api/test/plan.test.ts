@@ -87,8 +87,8 @@ describe('POST /api/plans', () => {
   describe('Validation', () => {
     const validVaultBody = VALID_PLAN_VAULT_BODY;
 
-    it('should return 400 when name is missing', async () => {
-      const { name: _name, ...invalidBody } = validVaultBody;
+    it('should return 400 when title is missing', async () => {
+      const { title: _title, ...invalidBody } = validVaultBody;
       const res = await request
         .post(API_PLANS)
         .set('Authorization', `Bearer ${validToken}`)
@@ -138,7 +138,7 @@ describe('POST /api/plans', () => {
     it('should create a vault plan successfully and return 201', async () => {
       const mockCreatedPlan = {
         id: 'plan-uuid-1',
-        name: validVaultBody.name,
+        name: validVaultBody.title,
         description: validVaultBody.description,
         savingType: validVaultBody.savingType,
         savingPlan: validVaultBody.savingPlan,
@@ -147,7 +147,7 @@ describe('POST /api/plans', () => {
         currentBalance: 0,
         startDate: new Date(validVaultBody.startDate),
         endDate: new Date(validVaultBody.endDate),
-        debitSchedule: validVaultBody.debitSchedule,
+        debitSchedule: validVaultBody.debitScheduleTime,
         nextDebitDate: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -163,7 +163,7 @@ describe('POST /api/plans', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('id', 'plan-uuid-1');
-      expect(res.body.data).toHaveProperty('name', validVaultBody.name);
+      expect(res.body.data).toHaveProperty('title', validVaultBody.title);
       expect(mockPrisma.plan.create).toHaveBeenCalledTimes(1);
     });
   });
@@ -200,7 +200,7 @@ describe('POST /api/plans', () => {
 
       const mockCreatedPlan = {
         id: 'plan-uuid-2',
-        name: validFantasyBody.name,
+        name: validFantasyBody.title,
         description: validFantasyBody.description,
         savingType: validFantasyBody.savingType,
         savingPlan: validFantasyBody.savingPlan,
@@ -209,7 +209,7 @@ describe('POST /api/plans', () => {
         currentBalance: 0,
         startDate: new Date(validFantasyBody.startDate),
         endDate: new Date(validFantasyBody.endDate),
-        debitSchedule: validFantasyBody.debitSchedule,
+        debitSchedule: 'Match Day',
         nextDebitDate: new Date(mockFixture.date),
         createdAt: new Date(),
         updatedAt: new Date(),

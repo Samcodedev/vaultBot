@@ -8,6 +8,7 @@ import {
   PlansPage,
   CreatePlanPage,
   TransactionsPage,
+  PlanDetailsPage,
 } from './pages/index.ts';
 import { ProtectedRoute } from '@/components';
 
@@ -31,6 +32,14 @@ function App() {
           element={
             <ProtectedRoute>
               <PlansPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/plans/:id"
+          element={
+            <ProtectedRoute>
+              <PlanDetailsPage />
             </ProtectedRoute>
           }
         />

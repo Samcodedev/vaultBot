@@ -9,7 +9,6 @@ import {
   Check,
   Calendar,
   Repeat,
-  Target,
   PenLine,
   Trophy,
   Landmark,
@@ -23,8 +22,6 @@ const savingTypes = [
   { value: 'monthly', label: 'Monthly', desc: 'Save every month' },
   { value: 'yearly', label: 'Yearly', desc: 'Save every year' },
 ];
-
-const steps = ['Goal', 'Amount', 'Frequency', 'Schedule', 'Review'];
 
 export default function CreatePlan() {
   const navigate = useNavigate();
@@ -45,6 +42,11 @@ export default function CreatePlan() {
     teamLogo: '',
   });
 
+  const steps =
+    form.savingPlan === 'fantasy-savings'
+      ? ['Goal', 'Trigger', 'Review']
+      : ['Goal', 'Frequency', 'Schedule', 'Review'];
+
   const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
   const selectPlanType = (type: 'vault' | 'fantasy-savings') => {
@@ -53,7 +55,7 @@ export default function CreatePlan() {
       savingPlan: type,
       teamName: type === 'vault' ? '' : f.teamName,
       teamLogo: type === 'vault' ? '' : f.teamLogo,
-      title: type === 'vault' ? '' : f.teamName ? `${f.teamName} Savings` : '',
+      title: type === 'vault' ? '' : f.title,
     }));
     setSavingPlanSelected(true);
     setStep(0);
@@ -69,16 +71,41 @@ export default function CreatePlan() {
         toast.error('Please enter a title');
         return;
       }
+      if (!form.targetAmount || Number(form.targetAmount) <= 0) {
+        toast.error('Enter a valid target amount');
+        return;
+      }
     }
-    if (step === 1 && (!form.targetAmount || Number(form.targetAmount) <= 0)) {
-      toast.error('Enter a valid target amount');
-      return;
+
+    if (form.savingPlan === 'vault') {
+      if (step === 2) {
+        if (!form.amount || Number(form.amount) <= 0) {
+          toast.error('Enter a valid amount to save per schedule');
+          return;
+        }
+        if (Number(form.amount) > Number(form.targetAmount)) {
+          toast.error('Debit amount cannot be greater than the target amount');
+          return;
+        }
+        if (!form.debitScheduleTime) {
+          toast.error('Please enter a debit time');
+          return;
+        }
+      }
+    } else {
+      // fantasy-savings
+      if (step === 1) {
+        if (!form.amount || Number(form.amount) <= 0) {
+          toast.error('Enter a valid amount to save per win');
+          return;
+        }
+        if (Number(form.amount) > Number(form.targetAmount)) {
+          toast.error('Debit amount cannot be greater than the target amount');
+          return;
+        }
+      }
     }
-    if (step === 3 && (!form.amount || !form.savingDuration)) {
-      toast.error('Please fill all fields');
-      return;
-    }
-    setStep((s) => Math.min(s + 1, 4));
+    setStep((s) => Math.min(s + 1, steps.length - 1));
   };
 
   const back = () => {
@@ -99,11 +126,13 @@ export default function CreatePlan() {
       description: form.description,
       currentBalance: 0,
       targetAmount: Number(form.targetAmount),
-      savingType: form.savingType,
-      savingDuration: form.savingDuration,
+      savingType: form.savingPlan === 'fantasy-savings' ? 'win-trigger' : form.savingType,
+      savingDuration: form.savingPlan === 'fantasy-savings' ? 'Ongoing' : form.savingDuration,
       savingPlan: form.savingPlan as 'vault' | 'fantasy-savings',
       teamName: form.savingPlan === 'fantasy-savings' ? form.teamName : undefined,
       teamLogo: form.savingPlan === 'fantasy-savings' ? form.teamLogo : undefined,
+      amount: Number(form.amount),
+      debitScheduleTime: form.savingPlan === 'vault' ? form.debitScheduleTime : undefined,
     };
 
     const updatedPlans = [...plans, newPlan];
@@ -265,15 +294,20 @@ export default function CreatePlan() {
                   transition={{ duration: 0.25 }}
                   className="rounded-2xl border border-border bg-card p-6 shadow-card"
                 >
+                  {/* Step 0: Goal details & Target Amount */}
                   {step === 0 && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
                         <PenLine size={18} />
-                        <span>Set your savings goal details</span>
+                        <span>
+                          {form.savingPlan === 'fantasy-savings'
+                            ? 'Link your football team, details, and target'
+                            : 'Set your savings goal details & target'}
+                        </span>
                       </div>
 
-                      {/* Custom dropdown with logo, name, and search input for Fantasy Savings */}
-                      {form.savingPlan === 'fantasy-savings' ? (
+                      {/* Custom dropdown for Fantasy Savings */}
+                      {form.savingPlan === 'fantasy-savings' && (
                         <div className="mb-4">
                           <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
                             Select Premier League Team
@@ -301,7 +335,6 @@ export default function CreatePlan() {
 
                             {isDropdownOpen && (
                               <div className="absolute z-50 mt-1.5 w-full rounded-xl border border-border bg-card shadow-lg p-2 max-h-60 overflow-y-auto space-y-1.5">
-                                {/* Search Filter Input */}
                                 <div className="sticky top-0 bg-card pb-1.5 border-b border-border/40">
                                   <input
                                     type="text"
@@ -309,7 +342,7 @@ export default function CreatePlan() {
                                     onChange={(e) => setTeamSearch(e.target.value)}
                                     placeholder="Search team..."
                                     className="w-full text-xs rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-foreground focus:outline-none focus:border-primary font-semibold"
-                                    onClick={(e) => e.stopPropagation()} // Prevent dropdown closing when clicking search
+                                    onClick={(e) => e.stopPropagation()}
                                   />
                                 </div>
 
@@ -322,7 +355,6 @@ export default function CreatePlan() {
                                         onClick={() => {
                                           update('teamName', t.name);
                                           update('teamLogo', t.logo);
-                                          update('title', `${t.name} Savings`);
                                           setIsDropdownOpen(false);
                                           setTeamSearch('');
                                         }}
@@ -346,21 +378,24 @@ export default function CreatePlan() {
                             )}
                           </div>
                         </div>
-                      ) : (
-                        /* Title input only for Vault Savings */
-                        <div>
-                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                            Title
-                          </label>
-                          <input
-                            type="text"
-                            value={form.title}
-                            onChange={(e) => update('title', e.target.value)}
-                            placeholder="e.g. Vacation Fund"
-                            className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
-                          />
-                        </div>
                       )}
+
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          {form.savingPlan === 'fantasy-savings' ? 'Savings Title' : 'Title'}
+                        </label>
+                        <input
+                          type="text"
+                          value={form.title}
+                          onChange={(e) => update('title', e.target.value)}
+                          placeholder={
+                            form.savingPlan === 'fantasy-savings'
+                              ? 'e.g. Chelsea Savings Plan'
+                              : 'e.g. Vacation Fund'
+                          }
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
+                        />
+                      </div>
 
                       <div>
                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -374,15 +409,7 @@ export default function CreatePlan() {
                           rows={3}
                         />
                       </div>
-                    </div>
-                  )}
 
-                  {step === 1 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
-                        <Target size={18} />
-                        <span>How much do you want to save?</span>
-                      </div>
                       <div>
                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
                           Target Amount (₦)
@@ -392,13 +419,14 @@ export default function CreatePlan() {
                           value={form.targetAmount}
                           onChange={(e) => update('targetAmount', e.target.value)}
                           placeholder="100000"
-                          className="w-full text-xl font-extrabold rounded-xl border border-border bg-muted/20 px-4 py-3 text-foreground focus:outline-none focus:border-primary mt-1"
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold focus:outline-none focus:border-primary mt-1"
                         />
                       </div>
                     </div>
                   )}
 
-                  {step === 2 && (
+                  {/* Step 1: Frequency (Vault only) OR Trigger Amount (Fantasy only) */}
+                  {step === 1 && form.savingPlan === 'vault' && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
                         <Repeat size={18} />
@@ -412,9 +440,7 @@ export default function CreatePlan() {
                             onClick={() => update('savingType', t.value)}
                             className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
                               form.savingType === t.value
-                                ? form.savingPlan === 'fantasy-savings'
-                                  ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500'
-                                  : 'border-primary bg-primary/5 ring-1 ring-primary'
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
                                 : 'border-border bg-card hover:border-primary/30'
                             }`}
                           >
@@ -428,11 +454,33 @@ export default function CreatePlan() {
                     </div>
                   )}
 
-                  {step === 3 && (
+                  {step === 1 && form.savingPlan === 'fantasy-savings' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
+                        <Trophy size={18} className="text-emerald-500" />
+                        <span>Win Trigger Amount</span>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Amount to save per user team win (₦)
+                        </label>
+                        <input
+                          type="number"
+                          value={form.amount}
+                          onChange={(e) => update('amount', e.target.value)}
+                          placeholder="5000"
+                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2: Vault Schedule & Debit Time OR Fantasy Review */}
+                  {step === 2 && form.savingPlan === 'vault' && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
                         <Calendar size={18} />
-                        <span>Set the schedule</span>
+                        <span>Set the schedule & debit time</span>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -444,17 +492,6 @@ export default function CreatePlan() {
                           onChange={(e) => update('amount', e.target.value)}
                           placeholder="5000"
                           className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Save until
-                        </label>
-                        <input
-                          type="date"
-                          value={form.savingDuration}
-                          onChange={(e) => update('savingDuration', e.target.value)}
-                          className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-foreground font-semibold focus:outline-none focus:border-primary mt-1"
                         />
                       </div>
                       <div>
@@ -472,7 +509,7 @@ export default function CreatePlan() {
                     </div>
                   )}
 
-                  {step === 4 && (
+                  {step === 2 && form.savingPlan === 'fantasy-savings' && (
                     <div className="space-y-3">
                       <h3 className="font-bold text-card-foreground text-sm border-b border-border pb-1.5">
                         Review your plan
@@ -480,31 +517,63 @@ export default function CreatePlan() {
                       <div className="rounded-xl bg-muted/50 border border-border/40 p-4 space-y-2.5 text-xs font-semibold">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Plan Type</span>
-                          <span className="font-bold text-card-foreground capitalize">
-                            {form.savingPlan.replace('-', ' ')}
+                          <span className="font-bold text-card-foreground capitalize text-emerald-500">
+                            Fantasy Savings
                           </span>
                         </div>
-                        {form.savingPlan === 'fantasy-savings' && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Linked Team</span>
-                            <span className="font-bold text-card-foreground flex items-center gap-1.5">
-                              {form.teamLogo && (
-                                <img
-                                  src={form.teamLogo}
-                                  alt=""
-                                  className="h-5 w-5 object-contain"
-                                />
-                              )}
-                              {form.teamName}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Linked Team</span>
+                          <span className="font-bold text-card-foreground flex items-center gap-1.5">
+                            {form.teamLogo && (
+                              <img src={form.teamLogo} alt="" className="h-5 w-5 object-contain" />
+                            )}
+                            {form.teamName}
+                          </span>
+                        </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Goal</span>
+                          <span className="text-muted-foreground">Goal Title</span>
                           <span className="font-bold text-card-foreground">{form.title}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Target</span>
+                          <span className="text-muted-foreground">Target Amount</span>
+                          <span className="font-bold text-card-foreground">
+                            ₦{Number(form.targetAmount).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Savings per Win</span>
+                          <span className="font-bold text-card-foreground">
+                            ₦{Number(form.amount).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-2.5">
+                        We will automatically save{' '}
+                        <strong>₦{Number(form.amount).toLocaleString()}</strong> whenever{' '}
+                        <strong>{form.teamName}</strong> wins a Premier League match.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Step 3: Vault Review */}
+                  {step === 3 && form.savingPlan === 'vault' && (
+                    <div className="space-y-3">
+                      <h3 className="font-bold text-card-foreground text-sm border-b border-border pb-1.5">
+                        Review your plan
+                      </h3>
+                      <div className="rounded-xl bg-muted/50 border border-border/40 p-4 space-y-2.5 text-xs font-semibold">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Plan Type</span>
+                          <span className="font-bold text-card-foreground capitalize text-primary">
+                            Vault Savings
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Goal Title</span>
+                          <span className="font-bold text-card-foreground">{form.title}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Target Amount</span>
                           <span className="font-bold text-card-foreground">
                             ₦{Number(form.targetAmount).toLocaleString()}
                           </span>
@@ -512,21 +581,13 @@ export default function CreatePlan() {
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Frequency</span>
                           <span className="font-bold text-card-foreground capitalize">
-                            {form.savingPlan === 'fantasy-savings'
-                              ? `Match Day (${form.savingType})`
-                              : form.savingType}
+                            {form.savingType}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Debit amount</span>
                           <span className="font-bold text-card-foreground">
                             ₦{Number(form.amount).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Until</span>
-                          <span className="font-bold text-card-foreground">
-                            {form.savingDuration}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -537,27 +598,8 @@ export default function CreatePlan() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed mt-2.5">
-                        {form.savingPlan === 'fantasy-savings' ? (
-                          <>
-                            We will automatically save{' '}
-                            <strong>₦{Number(form.amount).toLocaleString()}</strong> on each match
-                            day for <strong>{form.teamName}</strong> (first debit starts on next
-                            fixture matchday, configured {form.savingType}) until{' '}
-                            {form.savingDuration
-                              ? new Date(form.savingDuration).toLocaleDateString()
-                              : '—'}
-                            .
-                          </>
-                        ) : (
-                          <>
-                            We will debit <strong>₦{Number(form.amount).toLocaleString()}</strong>{' '}
-                            {form.savingType} until{' '}
-                            {form.savingDuration
-                              ? new Date(form.savingDuration).toLocaleDateString()
-                              : '—'}
-                            .
-                          </>
-                        )}
+                        We will debit <strong>₦{Number(form.amount).toLocaleString()}</strong>{' '}
+                        {form.savingType} at <strong>{form.debitScheduleTime}</strong>.
                       </p>
                     </div>
                   )}
@@ -572,7 +614,7 @@ export default function CreatePlan() {
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
-                {step < 4 ? (
+                {step < steps.length - 1 ? (
                   <button
                     type="button"
                     onClick={next}
