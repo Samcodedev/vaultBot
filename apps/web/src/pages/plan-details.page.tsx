@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components';
 import { toast } from 'sonner';
@@ -13,32 +13,59 @@ import {
   PlusCircle,
   TrendingUp,
   Percent,
+  Loader2,
 } from 'lucide-react';
 import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/types';
-import { DEFAULT_PLANS, DEFAULT_TRANSACTIONS } from '@/data/dashboard.data';
+import { useAuth } from '@/contexts/AuthContext';
+import { planApi } from '@/lib/api';
 import { teams } from '../../../../data/team.data';
 
 export default function PlanDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Load plans & transactions from localStorage or use defaults
-  const [plans, setPlans] = useState<Plan[]>(() => {
-    const saved = localStorage.getItem('vb_plans');
-    return saved ? JSON.parse(saved) : DEFAULT_PLANS;
-  });
+  const { token } = useAuth();
 
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('vb_transactions');
-    return saved ? JSON.parse(saved) : DEFAULT_TRANSACTIONS;
-  });
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // State for manual deposit form
   const [depositAmount, setDepositAmount] = useState('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isSubmittingDeposit, setIsSubmittingDeposit] = useState(false);
 
-  // Find the plan
-  const plan = plans.find((p) => p.id === id);
+  useEffect(() => {
+    const fetchPlanDetails = async () => {
+      if (!token || !id) return;
+      try {
+        setIsLoading(true);
+        const data = await planApi.getPlanById(id, token);
+        setPlan(data);
+
+        // Fetch transactions from local storage (or empty default)
+        const savedTx = localStorage.getItem('vb_transactions');
+        setTransactions(savedTx ? JSON.parse(savedTx) : []);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load plan details';
+        toast.error(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlanDetails();
+  }, [id, token]);
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center py-40">
+          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!plan) {
     return (
@@ -187,7 +214,7 @@ export default function PlanDetailsPage() {
     };
   };
 
-  const handleDepositSubmit = (e: React.FormEvent) => {
+  const handleDepositSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(depositAmount);
 
@@ -196,47 +223,43 @@ export default function PlanDetailsPage() {
       return;
     }
 
-    // Update plans balance
-    const updatedPlans = plans.map((p) => {
-      if (p.id === plan.id) {
-        return {
-          ...p,
-          currentBalance: p.currentBalance + amountNum,
-        };
-      }
-      return p;
-    });
+    if (!token || !plan || !id) return;
 
-    // Create a new transaction log
-    const newTx: Transaction = {
-      // eslint-disable-next-line react-hooks/purity
-      id: `tx-${Date.now()}`,
-      planTitle: plan.title,
-      amount: amountNum,
-      type: 'deposit',
-      status: 'completed',
-      date: 'Just now',
-    };
+    try {
+      setIsSubmittingDeposit(true);
+      const newBalance = plan.currentBalance + amountNum;
 
-    const updatedTxs = [newTx, ...transactions];
+      // Update plan balance on backend
+      const updated = await planApi.updatePlan(id, { currentBalance: newBalance }, token);
+      setPlan(updated);
 
-    setPlans(updatedPlans);
-    setTransactions(updatedTxs);
+      // Create a new transaction log in localStorage
+      const newTx: Transaction = {
+        id: `tx-${Date.now()}`,
+        planTitle: plan.title,
+        amount: amountNum,
+        type: 'deposit',
+        status: 'completed',
+        date: 'Just now',
+      };
 
-    localStorage.setItem('vb_plans', JSON.stringify(updatedPlans));
-    localStorage.setItem('vb_transactions', JSON.stringify(updatedTxs));
+      const updatedTxs = [newTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('vb_transactions', JSON.stringify(updatedTxs));
 
-    setDepositAmount('');
-    toast.success(`Successfully deposited ${formatCurrency(amountNum)} to ${plan.title}!`);
+      setDepositAmount('');
+      toast.success(`Successfully deposited ${formatCurrency(amountNum)} to ${plan.title}!`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to complete deposit';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmittingDeposit(false);
+    }
   };
 
   const handleDeletePlan = () => {
-    const updatedPlans = plans.filter((p) => p.id !== plan.id);
-    setPlans(updatedPlans);
-    localStorage.setItem('vb_plans', JSON.stringify(updatedPlans));
-
-    toast.success(`Savings plan "${plan.title}" deleted successfully.`);
-    navigate('/dashboard/plans');
+    toast.error('Deleting savings plans is not supported yet.');
+    setIsConfirmingDelete(false);
   };
 
   return (
@@ -401,9 +424,10 @@ export default function PlanDetailsPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl gradient-primary text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  disabled={isSubmittingDeposit}
+                  className="w-full py-3 rounded-xl gradient-primary text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <PlusCircle size={14} /> Deposit Funds
+                  <PlusCircle size={14} /> {isSubmittingDeposit ? 'Depositing...' : 'Deposit Funds'}
                 </button>
               </form>
             </div>

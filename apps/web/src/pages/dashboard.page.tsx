@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components';
-import { Wallet, Target, TrendingUp, PlusCircle } from 'lucide-react';
+import { Wallet, Target, TrendingUp, PlusCircle, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -17,30 +17,34 @@ import {
   Cell,
 } from 'recharts';
 import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/types';
-import { DEFAULT_PLANS, DEFAULT_TRANSACTIONS } from '@/data/dashboard.data';
+import { planApi } from '@/lib/api';
 
 export default function Dashboard() {
-  const { user } = useAuth();
-
-  // Load plans & transactions from localStorage or use defaults
-  const [plans] = useState<Plan[]>(() => {
-    const saved = localStorage.getItem('vb_plans');
-    return saved ? JSON.parse(saved) : DEFAULT_PLANS;
-  });
-
-  const [transactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('vb_transactions');
-    return saved ? JSON.parse(saved) : DEFAULT_TRANSACTIONS;
-  });
-
-  // Persist state when changes happen
-  useEffect(() => {
-    localStorage.setItem('vb_plans', JSON.stringify(plans));
-  }, [plans]);
+  const { user, token } = useAuth();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('vb_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    const loadDashboardData = async () => {
+      if (!token) return;
+      try {
+        setIsLoading(true);
+        const data = await planApi.getPlans(token);
+        setPlans(data);
+
+        // Retrieve transactions from local storage (or default empty)
+        const savedTx = localStorage.getItem('vb_transactions');
+        setTransactions(savedTx ? JSON.parse(savedTx) : []);
+      } catch (err) {
+        console.error('Failed to load dashboard statistics', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [token]);
 
   // Dynamic calculations based on state
   const totalSaved = plans.reduce((acc, curr) => acc + curr.currentBalance, 0);
@@ -102,6 +106,16 @@ export default function Dashboard() {
       color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center py-40">
+          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -279,7 +293,7 @@ export default function Dashboard() {
                     className="text-[10px] font-bold text-muted-foreground truncate"
                     title={d.name}
                   >
-                    {d.name} ({Math.round((d.value / totalSaved) * 100)}%)
+                    {d.name} ({totalSaved > 0 ? Math.round((d.value / totalSaved) * 100) : 0}%)
                   </span>
                 </div>
               ))}
@@ -318,32 +332,43 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {transactions.slice(0, 4).map((tx) => (
-                    <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
-                      <td className="py-3 text-emerald-600 dark:text-emerald-400">
-                        +{formatCurrency(tx.amount)}
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-8 text-center text-muted-foreground font-semibold"
+                      >
+                        No recent transactions found.
                       </td>
-                      <td className="py-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                            tx.type === 'auto-save'
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                          }`}
-                        >
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          {tx.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right text-muted-foreground">{tx.date}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    transactions.slice(0, 4).map((tx) => (
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
+                        <td className="py-3 text-emerald-600 dark:text-emerald-400">
+                          +{formatCurrency(tx.amount)}
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                              tx.type === 'auto-save'
+                                ? 'bg-primary/10 text-primary'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            {tx.type}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <span className="flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            {tx.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-muted-foreground">{tx.date}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

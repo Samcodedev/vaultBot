@@ -63,3 +63,51 @@ export const createPlanValidator = [
 
   validate,
 ];
+
+export const updatePlanValidator = [
+  body('title')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Plan title cannot be empty')
+    .isLength({ min: 2, max: 80 })
+    .withMessage('Plan title must be between 2 and 80 characters'),
+
+  body('description')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Description must be at most 255 characters'),
+
+  body('savingType')
+    .optional()
+    .trim()
+    .notEmpty()
+    .isIn([...SAVING_TYPE])
+    .withMessage(`Saving type must be one of: ${SAVING_TYPE.join(', ')}`),
+
+  body('amount')
+    .optional()
+    .notEmpty()
+    .isFloat({ min: 1 })
+    .withMessage('Amount must be a positive number'),
+
+  body('targetAmount')
+    .optional()
+    .notEmpty()
+    .isFloat({ min: 1 })
+    .withMessage('Target amount must be a positive number'),
+
+  body('debitScheduleTime')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Debit schedule time cannot be empty'),
+
+  body('currentBalance')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Current balance must be a non-negative number'),
+
+  validate,
+];

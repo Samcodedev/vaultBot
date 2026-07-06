@@ -13,8 +13,9 @@ import {
   Trophy,
   Landmark,
 } from 'lucide-react';
-import type { SavingsPlan as Plan } from '@/types';
 import { teams } from '../../../../data/team.data';
+import { useAuth } from '@/contexts/AuthContext';
+import { planApi } from '@/lib/api';
 
 const savingTypes = [
   { value: 'daily', label: 'Daily', desc: 'Save every day' },
@@ -25,6 +26,7 @@ const savingTypes = [
 
 export default function CreatePlan() {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [savingPlanSelected, setSavingPlanSelected] = useState(false);
   const [step, setStep] = useState(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -116,30 +118,36 @@ export default function CreatePlan() {
     }
   };
 
-  const handleSubmit = () => {
-    const saved = localStorage.getItem('vb_plans');
-    const plans: Plan[] = saved ? JSON.parse(saved) : [];
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const newPlan: Plan = {
-      id: `plan-${Date.now()}`,
-      title: form.title,
-      description: form.description,
-      currentBalance: 0,
-      targetAmount: Number(form.targetAmount),
-      savingType: form.savingPlan === 'fantasy-savings' ? 'win-trigger' : form.savingType,
-      savingDuration: form.savingPlan === 'fantasy-savings' ? 'Ongoing' : form.savingDuration,
-      savingPlan: form.savingPlan as 'vault' | 'fantasy-savings',
-      teamName: form.savingPlan === 'fantasy-savings' ? form.teamName : undefined,
-      teamLogo: form.savingPlan === 'fantasy-savings' ? form.teamLogo : undefined,
-      amount: Number(form.amount),
-      debitScheduleTime: form.savingPlan === 'vault' ? form.debitScheduleTime : undefined,
-    };
+  const handleSubmit = async () => {
+    if (!token) {
+      toast.error('You must be logged in to create a plan');
+      return;
+    }
 
-    const updatedPlans = [...plans, newPlan];
-    localStorage.setItem('vb_plans', JSON.stringify(updatedPlans));
+    try {
+      setIsSubmitting(true);
+      const payload = {
+        title: form.title,
+        description: form.description || undefined,
+        targetAmount: Number(form.targetAmount),
+        savingType: form.savingPlan === 'fantasy-savings' ? 'win-trigger' : form.savingType,
+        savingPlan: form.savingPlan as 'vault' | 'fantasy-savings',
+        amount: Number(form.amount),
+        debitScheduleTime: form.savingPlan === 'vault' ? form.debitScheduleTime : undefined,
+        teamName: form.savingPlan === 'fantasy-savings' ? form.teamName : undefined,
+      };
 
-    toast.success(`Savings plan "${form.title}" created successfully!`);
-    navigate('/dashboard/plans');
+      await planApi.createPlan(payload, token);
+      toast.success(`Savings plan "${form.title}" created successfully!`);
+      navigate('/dashboard/plans');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create savings plan';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const slideVariants = {
@@ -628,9 +636,10 @@ export default function CreatePlan() {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1"
+                    disabled={isSubmitting}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check size={14} /> Create Plan
+                    <Check size={14} /> {isSubmitting ? 'Creating...' : 'Create Plan'}
                   </button>
                 )}
               </div>

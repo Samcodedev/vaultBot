@@ -295,6 +295,10 @@ export const updatePlan = async (req: AuthenticatedRequest, res: Response) => {
       plan.savingPlan === 'vault' && debitScheduleTime !== undefined
         ? debitScheduleTime
         : plan.debitSchedule;
+    const currentBal =
+      req.body.currentBalance !== undefined
+        ? parseFloat(req.body.currentBalance.toString())
+        : plan.currentBalance;
 
     // Recalculate if calculations-related fields are updated
     let nextDebitDate = plan.nextDebitDate;
@@ -342,6 +346,7 @@ export const updatePlan = async (req: AuthenticatedRequest, res: Response) => {
         debitSchedule: schedule,
         nextDebitDate,
         endDate,
+        currentBalance: currentBal,
       },
       select: {
         id: true,
