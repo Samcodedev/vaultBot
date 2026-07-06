@@ -6,6 +6,12 @@ export interface SavingsPlan {
   targetAmount: number;
   savingType: 'daily' | 'weekly' | 'monthly' | 'yearly' | string;
   savingDuration: string;
+  savingPlan?: 'vault' | 'fantasy-savings';
+  teamName?: string;
+  teamLogo?: string;
+  amount?: number;
+  debitScheduleTime?: string;
+  nextDebitDate?: string | Date;
 }
 
 export interface SavingsTransaction {

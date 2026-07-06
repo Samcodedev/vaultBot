@@ -1,4 +1,4 @@
-import type { LoginUserInput, RegisterUserInput, AuthResponse } from '@/types';
+import type { LoginUserInput, RegisterUserInput, AuthResponse, User } from '@/types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -37,5 +37,23 @@ export const authApi = {
     }
 
     return data;
+  },
+
+  getUser: async (token: string): Promise<User> => {
+    const res = await fetch(`${API_BASE_URL}/auth`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to fetch user data');
+    }
+
+    return data.data;
   },
 };

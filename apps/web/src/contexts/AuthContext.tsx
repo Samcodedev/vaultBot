@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '@/types';
+import { authApi } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -31,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
 
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => !!localStorage.getItem('token'));
 
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
@@ -46,6 +47,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (token) {
+        try {
+          setIsLoading(true);
+          const userData = await authApi.getUser(token);
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+        } catch (err) {
+          console.error('Failed to load user details from server', err);
+          logout();
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [token]);
 
   const isAuthenticated = !!token;
 

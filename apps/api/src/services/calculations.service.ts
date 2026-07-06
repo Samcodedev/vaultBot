@@ -40,3 +40,26 @@ export const calculateNextDebitDate = (
 
   return nextDate;
 };
+
+export const calculateEndDate = (
+  savingType: string,
+  targetAmount: number,
+  amount: number,
+  startDate: Date = new Date(),
+): Date => {
+  const debitsNeeded = Math.ceil(targetAmount / amount);
+  const calculatedEndDate = new Date(startDate);
+  if (savingType === 'daily') {
+    calculatedEndDate.setDate(calculatedEndDate.getDate() + debitsNeeded);
+  } else if (savingType === 'weekly') {
+    calculatedEndDate.setDate(calculatedEndDate.getDate() + debitsNeeded * 7);
+  } else if (savingType === 'monthly') {
+    calculatedEndDate.setMonth(calculatedEndDate.getMonth() + debitsNeeded);
+  } else if (savingType === 'yearly') {
+    calculatedEndDate.setFullYear(calculatedEndDate.getFullYear() + debitsNeeded);
+  } else {
+    // Fallback to 1 year
+    calculatedEndDate.setFullYear(calculatedEndDate.getFullYear() + 1);
+  }
+  return calculatedEndDate;
+};
