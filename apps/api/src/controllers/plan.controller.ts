@@ -189,3 +189,194 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
       .json({ success: false, error: INTERNAL_SERVER_ERROR.ERROR });
   }
 };
+
+export const getPlans = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(UNAUTHORIZED.STATUS_CODE).json({
+        success: false,
+        message: 'Unauthorized access',
+      });
+    }
+
+    const plans = await prisma.plan.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const mappedPlans = plans.map((plan) => ({
+      ...plan,
+      title: plan.name,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: mappedPlans,
+    });
+  } catch (error) {
+    logger.error('Error in getPlans:', error);
+    return res
+      .status(INTERNAL_SERVER_ERROR.STATUS_CODE)
+      .json({ success: false, error: INTERNAL_SERVER_ERROR.ERROR });
+  }
+};
+
+export const getPlanById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const id = req.params.id as string;
+
+    if (!userId) {
+      return res.status(UNAUTHORIZED.STATUS_CODE).json({
+        success: false,
+        message: 'Unauthorized access',
+      });
+    }
+
+    const plan = await prisma.plan.findFirst({
+      where: { id, userId },
+    });
+
+    if (!plan) {
+      return res.status(NOT_FOUND.STATUS_CODE).json({
+        success: false,
+        message: 'Savings plan not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...plan,
+        title: plan.name,
+      },
+    });
+  } catch (error) {
+    logger.error('Error in getPlanById:', error);
+    return res
+      .status(INTERNAL_SERVER_ERROR.STATUS_CODE)
+      .json({ success: false, error: INTERNAL_SERVER_ERROR.ERROR });
+  }
+};
+
+export const updatePlan = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const id = req.params.id as string;
+    const { title, description, amount, targetAmount, savingType, debitScheduleTime } = req.body;
+
+    if (!userId) {
+      return res.status(UNAUTHORIZED.STATUS_CODE).json({
+        success: false,
+        message: 'Unauthorized access',
+      });
+    }
+
+    const plan = await prisma.plan.findFirst({
+      where: { id, userId },
+    });
+
+    if (!plan) {
+      return res.status(NOT_FOUND.STATUS_CODE).json({
+        success: false,
+        message: 'Savings plan not found',
+      });
+    }
+
+    // Merge updates
+    const name = title !== undefined ? title : plan.name;
+    const desc = description !== undefined ? description : plan.description;
+    const amt = amount !== undefined ? parseFloat(amount.toString()) : plan.amount;
+    const targetAmt =
+      targetAmount !== undefined ? parseFloat(targetAmount.toString()) : plan.targetAmount;
+    const type = savingType !== undefined ? savingType : plan.savingType;
+    const schedule =
+      plan.savingPlan === 'vault' && debitScheduleTime !== undefined
+        ? debitScheduleTime
+        : plan.debitSchedule;
+
+    // Recalculate if calculations-related fields are updated
+    let nextDebitDate = plan.nextDebitDate;
+    let endDate = plan.endDate;
+
+    if (plan.savingPlan === 'vault') {
+      const isCalculationUpdate =
+        amount !== undefined ||
+        targetAmount !== undefined ||
+        savingType !== undefined ||
+        debitScheduleTime !== undefined;
+
+      if (isCalculationUpdate) {
+        nextDebitDate = calculateNextDebitDate(
+          type as (typeof SAVING_TYPE)[number],
+          schedule,
+          new Date(),
+        );
+        endDate = calculateEndDate(type, targetAmt, amt, plan.startDate);
+
+        if (isNaN(nextDebitDate.getTime())) {
+          return res.status(BAD_REQUEST.STATUS_CODE).json({
+            success: false,
+            message: 'Invalid debit schedule time format. Please use "HH:MM AM/PM" format.',
+          });
+        }
+      }
+    } else if (plan.savingPlan === 'fantasy-savings') {
+      const isCalculationUpdate =
+        amount !== undefined || targetAmount !== undefined || savingType !== undefined;
+
+      if (isCalculationUpdate) {
+        endDate = calculateEndDate(type, targetAmt, amt, plan.startDate);
+      }
+    }
+
+    const updatedPlan = await prisma.plan.update({
+      where: { id },
+      data: {
+        name,
+        description: desc,
+        amount: amt,
+        targetAmount: targetAmt,
+        savingType: type,
+        debitSchedule: schedule,
+        nextDebitDate,
+        endDate,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        savingType: true,
+        savingPlan: true,
+        amount: true,
+        targetAmount: true,
+        currentBalance: true,
+        startDate: true,
+        endDate: true,
+        debitSchedule: true,
+        nextDebitDate: true,
+        teamId: true,
+        teamName: true,
+        nextFixtureId: true,
+        nextFixtureDate: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Plan updated successfully',
+      data: {
+        ...updatedPlan,
+        title: updatedPlan.name,
+      },
+    });
+  } catch (error) {
+    logger.error('Error in updatePlan:', error);
+    return res
+      .status(INTERNAL_SERVER_ERROR.STATUS_CODE)
+      .json({ success: false, error: INTERNAL_SERVER_ERROR.ERROR });
+  }
+};
