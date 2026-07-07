@@ -17,6 +17,7 @@ export const UNAUTHORIZED = {
   ERROR: 'Unauthorized',
   STATUS_CODE: 401,
 };
+export const UNAUTHORIZED_ACCESS = 'Unauthorized access';
 export const FORBIDDEN = {
   ERROR: 'Forbidden',
   STATUS_CODE: 403,

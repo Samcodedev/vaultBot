@@ -4,6 +4,7 @@ dotenv.config();
 
 import app from './app.js';
 import prisma from './config/db.js';
+import { cronService } from './services/index.js';
 import logger from './utils/logger.js';
 
 const PORT = process.env.PORT || 5000;
@@ -32,6 +33,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
+      cronService.start();
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

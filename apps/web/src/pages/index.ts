@@ -6,3 +6,4 @@ export { default as PlansPage } from './plans.page';
 export { default as CreatePlanPage } from './create.page';
 export { default as TransactionsPage } from './transactions.page';
 export { default as PlanDetailsPage } from './plan-details.page';
+export { default as ProfilePage } from './profile.page';

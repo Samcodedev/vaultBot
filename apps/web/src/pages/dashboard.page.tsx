@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components';
-import { Wallet, Target, TrendingUp, PlusCircle } from 'lucide-react';
+import { Wallet, Target, TrendingUp, PlusCircle, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -17,37 +17,38 @@ import {
   Cell,
 } from 'recharts';
 import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/types';
-import { DEFAULT_PLANS, DEFAULT_TRANSACTIONS } from '@/data/dashboard.data';
+import { planApi, transactionApi } from '@/lib/api';
 
 export default function Dashboard() {
-  const { user } = useAuth();
-
-  // Load plans & transactions from localStorage or use defaults
-  const [plans] = useState<Plan[]>(() => {
-    const saved = localStorage.getItem('vb_plans');
-    return saved ? JSON.parse(saved) : DEFAULT_PLANS;
-  });
-
-  const [transactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('vb_transactions');
-    return saved ? JSON.parse(saved) : DEFAULT_TRANSACTIONS;
-  });
-
-  // Persist state when changes happen
-  useEffect(() => {
-    localStorage.setItem('vb_plans', JSON.stringify(plans));
-  }, [plans]);
+  const { token } = useAuth();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('vb_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    const loadDashboardData = async () => {
+      if (!token) return;
+      try {
+        setIsLoading(true);
+        const data = await planApi.getPlans(token);
+        setPlans(data);
 
-  // Dynamic calculations based on state
+        const txData = await transactionApi.getTransactions(token);
+        setTransactions(txData);
+      } catch (err) {
+        console.error('Failed to load dashboard statistics', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [token]);
+
   const totalSaved = plans.reduce((acc, curr) => acc + curr.currentBalance, 0);
   const activePlansCount = plans.length;
   const targetCompletedCount = plans.filter((p) => p.currentBalance >= p.targetAmount).length;
 
-  // Format helper
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -56,19 +57,131 @@ export default function Dashboard() {
     }).format(value);
   };
 
-  // Chart Data preparation
-  // 1. Growth history chart data
-  const growthData = [
-    { name: 'Jan', Savings: totalSaved * 0.4 },
-    { name: 'Feb', Savings: totalSaved * 0.55 },
-    { name: 'Mar', Savings: totalSaved * 0.7 },
-    { name: 'Apr', Savings: totalSaved * 0.8 },
-    { name: 'May', Savings: totalSaved * 0.9 },
-    { name: 'Jun', Savings: totalSaved * 0.95 },
-    { name: 'Jul', Savings: totalSaved },
-  ];
+  const formatTransactionDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const datePart = d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${datePart} • ${timePart}`;
+  };
 
-  // 2. Goal distribution pie chart data
+  const getGrowthData = () => {
+    const completedTxs = [...transactions]
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (completedTxs.length === 0) {
+      return [
+        {
+          name: 'Start',
+          dateLabel: 'No transactions yet',
+          Savings: 0,
+          txAmount: 0,
+          txTitle: 'N/A',
+          txType: 'system',
+        },
+      ];
+    }
+
+    let cumulative = 0;
+    const dataPoints = completedTxs.map((tx) => {
+      cumulative += tx.amount;
+      const d = new Date(tx.date);
+      const dateLabel = d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const timeLabel = d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      return {
+        name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        dateLabel: `${dateLabel} • ${timeLabel}`,
+        Savings: cumulative,
+        txAmount: tx.amount,
+        txTitle: tx.planTitle,
+        txType: tx.type,
+      };
+    });
+
+    const firstTxDate = new Date(completedTxs[0].date);
+    const startPointDate = new Date(firstTxDate);
+    startPointDate.setDate(firstTxDate.getDate() - 1);
+
+    const startPoint = {
+      name: startPointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      dateLabel: 'Initial Balance',
+      Savings: 0,
+      txAmount: 0,
+      txTitle: 'Vault Setup',
+      txType: 'system',
+    };
+
+    return [startPoint, ...dataPoints];
+  };
+
+  const growthData = getGrowthData();
+
+  const getSavingsGrowthPercentage = () => {
+    const sortedTxs = [...transactions]
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const now = new Date();
+    const lastMonthDate = new Date();
+    lastMonthDate.setMonth(now.getMonth() - 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
+
+    let balanceLastMonth = 0;
+
+    let cumulative = 0;
+    sortedTxs.forEach((tx) => {
+      const txDate = new Date(tx.date);
+      cumulative += tx.amount;
+
+      const isBeforeLastMonth =
+        txDate.getFullYear() < lastMonthYear ||
+        (txDate.getFullYear() === lastMonthYear && txDate.getMonth() < lastMonth);
+      const isLastMonth = txDate.getFullYear() === lastMonthYear && txDate.getMonth() === lastMonth;
+
+      if (isBeforeLastMonth || isLastMonth) {
+        balanceLastMonth = cumulative;
+      }
+    });
+
+    const balanceThisMonth = cumulative;
+    const diff = balanceThisMonth - balanceLastMonth;
+
+    if (balanceLastMonth === 0) {
+      return balanceThisMonth > 0 ? '+100% growth' : 'No savings yet';
+    }
+    const pct = ((diff / balanceLastMonth) * 100).toFixed(1);
+    return diff >= 0 ? `+${pct}% from last month` : `${pct}% from last month`;
+  };
+
+  const autoSaveTransactions = transactions.filter(
+    (t) => t.type === 'auto-save' && t.status === 'completed',
+  );
+  const totalAutoSaved = autoSaveTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+  const avgAutoSaveAmount =
+    autoSaveTransactions.length > 0 ? totalAutoSaved / autoSaveTransactions.length : 0;
+
+  const totalTargetAmount = plans.reduce((acc, curr) => acc + curr.targetAmount, 0);
+  const hasAutoSaveData = totalAutoSaved > 0;
+
   const distributionData = plans.map((p) => ({
     name: p.title,
     value: p.currentBalance,
@@ -76,14 +189,11 @@ export default function Dashboard() {
 
   const COLORS = ['#1e40af', '#0d9488', '#d97706', '#8b5cf6'];
 
-  const firstName = user?.firstName || '';
-
-  // Stats Card data
   const stats = [
     {
       label: 'Total Saved',
       value: formatCurrency(totalSaved),
-      subtext: '+12.4% from last month',
+      subtext: getSavingsGrowthPercentage(),
       icon: Wallet,
       color: 'bg-primary/10 text-primary',
     },
@@ -95,13 +205,25 @@ export default function Dashboard() {
       color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     },
     {
-      label: 'Auto-Save Rate',
-      value: '₦32,000',
-      subtext: 'Average saved monthly',
+      label: hasAutoSaveData ? 'Total Auto-Saved' : 'Total Target Goal',
+      value: formatCurrency(hasAutoSaveData ? totalAutoSaved : totalTargetAmount),
+      subtext: hasAutoSaveData
+        ? `Avg debit size: ${formatCurrency(avgAutoSaveAmount)}`
+        : `Target amount for all plans`,
       icon: TrendingUp,
       color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center py-40">
+          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -110,10 +232,10 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              Welcome back, {firstName || 'User'}
+              Savings Command Center
             </h1>
-            <p className="text-sm text-muted-foreground mt-1.5">
-              Here is your detailed smart savings dashboard.
+            <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+              Gamifying and Automating Wealth-Building
             </p>
           </div>
 
@@ -197,30 +319,26 @@ export default function Dashboard() {
                     axisLine={false}
                     tickFormatter={(val) => `₦${val / 1000}k`}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--color-card)',
-                      borderColor: 'var(--color-border)',
-                      borderRadius: '12px',
-                      color: 'var(--color-foreground)',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      boxShadow: 'var(--shadow-card)',
-                    }}
-                    formatter={(
-                      value: string | number | readonly (string | number)[] | undefined,
-                    ) => [
-                      formatCurrency(Number(Array.isArray(value) ? value[0] : value || 0)),
-                      'Saved',
-                    ]}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Area
-                    type="monotone"
+                    type="linear"
                     dataKey="Savings"
                     stroke="hsl(217, 71%, 55%)"
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#colorSavings)"
+                    dot={{
+                      r: 3.5,
+                      stroke: 'hsl(217, 71%, 55%)',
+                      strokeWidth: 1.5,
+                      fill: 'var(--color-card)',
+                    }}
+                    activeDot={{
+                      r: 5.5,
+                      stroke: 'hsl(217, 71%, 55%)',
+                      strokeWidth: 2,
+                      fill: 'hsl(217, 71%, 55%)',
+                    }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -279,7 +397,7 @@ export default function Dashboard() {
                     className="text-[10px] font-bold text-muted-foreground truncate"
                     title={d.name}
                   >
-                    {d.name} ({Math.round((d.value / totalSaved) * 100)}%)
+                    {d.name} ({totalSaved > 0 ? Math.round((d.value / totalSaved) * 100) : 0}%)
                   </span>
                 </div>
               ))}
@@ -318,32 +436,45 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {transactions.slice(0, 4).map((tx) => (
-                    <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
-                      <td className="py-3 text-emerald-600 dark:text-emerald-400">
-                        +{formatCurrency(tx.amount)}
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-8 text-center text-muted-foreground font-semibold"
+                      >
+                        No recent transactions found.
                       </td>
-                      <td className="py-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                            tx.type === 'auto-save'
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                          }`}
-                        >
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          {tx.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right text-muted-foreground">{tx.date}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    transactions.slice(0, 4).map((tx) => (
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
+                        <td className="py-3 text-emerald-600 dark:text-emerald-400">
+                          +{formatCurrency(tx.amount)}
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                              tx.type === 'auto-save'
+                                ? 'bg-primary/10 text-primary'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            {tx.type}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <span className="flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            {tx.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-muted-foreground">
+                          {formatTransactionDate(tx.date)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -353,3 +484,74 @@ export default function Dashboard() {
     </DashboardLayout>
   );
 }
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      name: string;
+      dateLabel: string;
+      Savings: number;
+      txAmount: number;
+      txTitle: string;
+      txType: string;
+    };
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    if (data.txType === 'system') {
+      return (
+        <div className="rounded-2xl border border-border bg-card p-3 shadow-card text-xs font-semibold text-foreground">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+            {data.dateLabel}
+          </p>
+          <p className="mt-1 text-foreground font-black text-sm">Initial Balance: ₦0</p>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-card text-xs font-semibold text-foreground space-y-1.5 min-w-[200px]">
+        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider border-b border-border/40 pb-1.5">
+          {data.dateLabel}
+        </p>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-muted-foreground">Transaction:</span>
+          <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+            +
+            {new Intl.NumberFormat('en-NG', {
+              style: 'currency',
+              currency: 'NGN',
+              maximumFractionDigits: 0,
+            }).format(data.txAmount)}
+          </span>
+        </div>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-muted-foreground">Goal Plan:</span>
+          <span className="font-extrabold text-foreground truncate max-w-[120px]">
+            {data.txTitle}
+          </span>
+        </div>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-muted-foreground">Type:</span>
+          <span className="font-extrabold bg-primary/10 text-primary dark:bg-indigo-400/20 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] capitalize">
+            {data.txType}
+          </span>
+        </div>
+        <div className="flex justify-between items-center gap-4 pt-1.5 border-t border-border/40 font-bold">
+          <span className="text-foreground">Total Balance:</span>
+          <span className="text-foreground font-black">
+            {new Intl.NumberFormat('en-NG', {
+              style: 'currency',
+              currency: 'NGN',
+              maximumFractionDigits: 0,
+            }).format(data.Savings)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};

@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "../../types/**/*", "../../data/**/*"]
+  "include": ["src/**/*", "scratch/**/*", "../../types/**/*", "../../data/**/*"]
 }

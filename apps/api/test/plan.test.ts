@@ -16,6 +16,9 @@ jest.mock('../src/config/db', () => ({
   default: {
     plan: {
       create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
@@ -182,17 +185,45 @@ describe('POST /api/plans', () => {
       expect(res.body.message).toContain('No football team found matching');
     });
 
-    it('should return 400 when no upcoming fixtures are found', async () => {
+    it('should create a fantasy-savings plan successfully even if no fixtures are found', async () => {
       mockGetNextFixture.mockResolvedValue(null);
+
+      const mockCreatedPlan = {
+        id: 'plan-uuid-pending',
+        name: validFantasyBody.title,
+        description: validFantasyBody.description,
+        savingType: validFantasyBody.savingType,
+        savingPlan: validFantasyBody.savingPlan,
+        amount: validFantasyBody.amount,
+        targetAmount: validFantasyBody.targetAmount,
+        currentBalance: 0,
+        startDate: new Date(validFantasyBody.startDate),
+        endDate: new Date(validFantasyBody.endDate),
+        debitSchedule: 'Match Day',
+        nextDebitDate: new Date(validFantasyBody.startDate),
+        teamId: 42,
+        teamName: 'Arsenal',
+        nextFixtureId: null,
+        nextFixtureDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (mockPrisma.plan.create as jest.Mock).mockResolvedValue(mockCreatedPlan);
 
       const res = await request
         .post(API_PLANS)
         .set('Authorization', `Bearer ${validToken}`)
         .send(validFantasyBody);
 
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-      expect(res.body.message).toContain('No upcoming fixtures found for');
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('id', 'plan-uuid-pending');
+      expect(res.body.data.nextFixtureId).toBeNull();
+      expect(res.body.data.nextFixtureDate).toBeNull();
+      expect(res.body.message).toContain(
+        'Your savings will start when match schedules are available',
+      );
     });
 
     it('should create a fantasy-savings plan successfully and return 201', async () => {
@@ -228,6 +259,181 @@ describe('POST /api/plans', () => {
       expect(res.body.data).toHaveProperty('id', 'plan-uuid-2');
       expect(mockGetNextFixture).toHaveBeenCalledWith(42); // Arsenal ID is 42 in local team data
       expect(mockPrisma.plan.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('GET /api/plans', () => {
+    it('should return 401 when no token is provided', async () => {
+      const res = await request.get(API_PLANS);
+      expect(res.status).toBe(401);
+    });
+
+    it('should return all plans for the authenticated user successfully', async () => {
+      const mockPlans = [
+        {
+          id: 'plan-1',
+          userId: USER_ID,
+          name: 'Vault savings 1',
+          description: 'Desc 1',
+          savingType: 'weekly',
+          savingPlan: 'vault',
+          amount: 50,
+          targetAmount: 500,
+          currentBalance: 100,
+          startDate: new Date(),
+          endDate: new Date(),
+          debitSchedule: '10:00 AM',
+          nextDebitDate: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      (mockPrisma.plan.findMany as jest.Mock).mockResolvedValue(mockPlans);
+
+      const res = await request.get(API_PLANS).set('Authorization', `Bearer ${validToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0]).toHaveProperty('title', 'Vault savings 1');
+      expect(mockPrisma.plan.findMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('GET /api/plans/:id', () => {
+    it('should return 401 when no token is provided', async () => {
+      const res = await request.get(`${API_PLANS}/plan-1`);
+      expect(res.status).toBe(401);
+    });
+
+    it('should return 404 if plan does not exist', async () => {
+      (mockPrisma.plan.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const res = await request
+        .get(`${API_PLANS}/plan-nonexistent`)
+        .set('Authorization', `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should return 404 if plan belongs to a different user', async () => {
+      (mockPrisma.plan.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const res = await request
+        .get(`${API_PLANS}/plan-other`)
+        .set('Authorization', `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should return the plan successfully when owner matches', async () => {
+      const mockPlan = {
+        id: 'plan-1',
+        userId: USER_ID,
+        name: 'Vault savings 1',
+        description: 'Desc 1',
+        savingType: 'weekly',
+        savingPlan: 'vault',
+        amount: 50,
+        targetAmount: 500,
+        currentBalance: 100,
+        startDate: new Date(),
+        endDate: new Date(),
+        debitSchedule: '10:00 AM',
+        nextDebitDate: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (mockPrisma.plan.findFirst as jest.Mock).mockResolvedValue(mockPlan);
+
+      const res = await request
+        .get(`${API_PLANS}/plan-1`)
+        .set('Authorization', `Bearer ${validToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('title', 'Vault savings 1');
+      expect(mockPrisma.plan.findFirst).toHaveBeenCalledWith({
+        where: { id: 'plan-1', userId: USER_ID },
+      });
+    });
+  });
+
+  describe('PUT /api/plans/:id', () => {
+    it('should return 401 when no token is provided', async () => {
+      const res = await request.put(`${API_PLANS}/plan-1`).send({});
+      expect(res.status).toBe(401);
+    });
+
+    it('should return 404 if plan to update is not found', async () => {
+      (mockPrisma.plan.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const res = await request
+        .put(`${API_PLANS}/plan-nonexistent`)
+        .set('Authorization', `Bearer ${validToken}`)
+        .send({ title: 'Updated Title' });
+
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 400 when update payload validation fails', async () => {
+      const res = await request
+        .put(`${API_PLANS}/plan-1`)
+        .set('Authorization', `Bearer ${validToken}`)
+        .send({ amount: -20 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should update plan, recalculate vault nextDebitDate, and return 200', async () => {
+      const existingPlan = {
+        id: 'plan-1',
+        userId: USER_ID,
+        name: 'Vault savings 1',
+        description: 'Desc 1',
+        savingType: 'weekly',
+        savingPlan: 'vault',
+        amount: 50,
+        targetAmount: 500,
+        currentBalance: 100,
+        startDate: new Date('2026-07-10T10:00:00.000Z'),
+        endDate: new Date('2026-10-10T10:00:00.000Z'),
+        debitSchedule: '10:00 AM',
+        nextDebitDate: new Date('2026-07-17T10:00:00.000Z'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const mockUpdatedPlan = {
+        ...existingPlan,
+        name: 'Updated Vault Title',
+        amount: 100,
+      };
+
+      (mockPrisma.plan.findFirst as jest.Mock).mockResolvedValue(existingPlan);
+      (mockPrisma.plan.update as jest.Mock).mockResolvedValue(mockUpdatedPlan);
+
+      const res = await request
+        .put(`${API_PLANS}/plan-1`)
+        .set('Authorization', `Bearer ${validToken}`)
+        .send({
+          title: 'Updated Vault Title',
+          amount: 100,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('title', 'Updated Vault Title');
+      expect(res.body.data).toHaveProperty('amount', 100);
+      expect(mockPrisma.plan.update).toHaveBeenCalledTimes(1);
     });
   });
 });
