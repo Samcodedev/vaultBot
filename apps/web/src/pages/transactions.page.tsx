@@ -108,7 +108,9 @@ export default function TransactionsPage() {
                 <tbody className="divide-y divide-border/40">
                   {filtered.map((tx) => (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3 text-muted-foreground font-mono">{tx.id}</td>
+                      <td className="py-3 text-muted-foreground font-mono" title={tx.id}>
+                        {tx.id.slice(0, 8)}...{tx.id.slice(-4)}
+                      </td>
                       <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
                       <td className="py-3 text-emerald-600 dark:text-emerald-400 font-bold">
                         +{formatCurrency(tx.amount)}

@@ -20,7 +20,7 @@ import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/t
 import { planApi, transactionApi } from '@/lib/api';
 
 export default function Dashboard() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +45,6 @@ export default function Dashboard() {
     loadDashboardData();
   }, [token]);
 
-  // Dynamic calculations based on state
   const totalSaved = plans.reduce((acc, curr) => acc + curr.currentBalance, 0);
   const activePlansCount = plans.length;
   const targetCompletedCount = plans.filter((p) => p.currentBalance >= p.targetAmount).length;
@@ -75,83 +74,113 @@ export default function Dashboard() {
   };
 
   const getGrowthData = () => {
-    const sortedTxs = [...transactions]
+    const completedTxs = [...transactions]
       .filter((t) => t.status === 'completed')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    const monthlyBalances: { [key: string]: number } = {};
-    let cumulative = 0;
-
-    const last6Months: string[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      last6Months.push(months[d.getMonth()]);
+    if (completedTxs.length === 0) {
+      return [
+        {
+          name: 'Start',
+          dateLabel: 'No transactions yet',
+          Savings: 0,
+          txAmount: 0,
+          txTitle: 'N/A',
+          txType: 'system',
+        },
+      ];
     }
 
-    last6Months.forEach((m) => {
-      monthlyBalances[m] = 0;
-    });
-
-    sortedTxs.forEach((tx) => {
-      const date = new Date(tx.date);
-      const monthName = months[date.getMonth()];
+    let cumulative = 0;
+    const dataPoints = completedTxs.map((tx) => {
       cumulative += tx.amount;
+      const d = new Date(tx.date);
+      const dateLabel = d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const timeLabel = d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
 
-      if (monthName in monthlyBalances) {
-        monthlyBalances[monthName] = cumulative;
-      }
-    });
-
-    let lastVal = 0;
-    const finalData = last6Months.map((m) => {
-      if (monthlyBalances[m] > 0) {
-        lastVal = monthlyBalances[m];
-      } else {
-        monthlyBalances[m] = lastVal;
-      }
       return {
-        name: m,
-        Savings: monthlyBalances[m],
+        name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        dateLabel: `${dateLabel} • ${timeLabel}`,
+        Savings: cumulative,
+        txAmount: tx.amount,
+        txTitle: tx.planTitle,
+        txType: tx.type,
       };
     });
 
-    return finalData;
+    const firstTxDate = new Date(completedTxs[0].date);
+    const startPointDate = new Date(firstTxDate);
+    startPointDate.setDate(firstTxDate.getDate() - 1);
+
+    const startPoint = {
+      name: startPointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      dateLabel: 'Initial Balance',
+      Savings: 0,
+      txAmount: 0,
+      txTitle: 'Vault Setup',
+      txType: 'system',
+    };
+
+    return [startPoint, ...dataPoints];
   };
 
   const growthData = getGrowthData();
 
   const getSavingsGrowthPercentage = () => {
-    const data = getGrowthData();
-    if (data.length < 2) return '+0% from last month';
-    const currentMonthSavings = data[data.length - 1].Savings;
-    const prevMonthSavings = data[data.length - 2].Savings;
-    if (prevMonthSavings === 0) {
-      return currentMonthSavings > 0 ? '+100% growth' : 'No savings yet';
+    const sortedTxs = [...transactions]
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const now = new Date();
+    const lastMonthDate = new Date();
+    lastMonthDate.setMonth(now.getMonth() - 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
+
+    let balanceLastMonth = 0;
+
+    let cumulative = 0;
+    sortedTxs.forEach((tx) => {
+      const txDate = new Date(tx.date);
+      cumulative += tx.amount;
+
+      const isBeforeLastMonth =
+        txDate.getFullYear() < lastMonthYear ||
+        (txDate.getFullYear() === lastMonthYear && txDate.getMonth() < lastMonth);
+      const isLastMonth = txDate.getFullYear() === lastMonthYear && txDate.getMonth() === lastMonth;
+
+      if (isBeforeLastMonth || isLastMonth) {
+        balanceLastMonth = cumulative;
+      }
+    });
+
+    const balanceThisMonth = cumulative;
+    const diff = balanceThisMonth - balanceLastMonth;
+
+    if (balanceLastMonth === 0) {
+      return balanceThisMonth > 0 ? '+100% growth' : 'No savings yet';
     }
-    const diff = currentMonthSavings - prevMonthSavings;
-    const pct = ((diff / prevMonthSavings) * 100).toFixed(1);
+    const pct = ((diff / balanceLastMonth) * 100).toFixed(1);
     return diff >= 0 ? `+${pct}% from last month` : `${pct}% from last month`;
   };
 
-  const activeAutoSavePlans = plans.filter((p) => p.autoSaveEnabled);
-  const totalAutoSaveRate = activeAutoSavePlans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const autoSaveTransactions = transactions.filter(
+    (t) => t.type === 'auto-save' && t.status === 'completed',
+  );
+  const totalAutoSaved = autoSaveTransactions.reduce((acc, curr) => acc + curr.amount, 0);
   const avgAutoSaveAmount =
-    activeAutoSavePlans.length > 0 ? totalAutoSaveRate / activeAutoSavePlans.length : 0;
+    autoSaveTransactions.length > 0 ? totalAutoSaved / autoSaveTransactions.length : 0;
+
+  const totalTargetAmount = plans.reduce((acc, curr) => acc + curr.targetAmount, 0);
+  const hasAutoSaveData = totalAutoSaved > 0;
 
   const distributionData = plans.map((p) => ({
     name: p.title,
@@ -159,8 +188,6 @@ export default function Dashboard() {
   }));
 
   const COLORS = ['#1e40af', '#0d9488', '#d97706', '#8b5cf6'];
-
-  const firstName = user?.firstName || '';
 
   const stats = [
     {
@@ -178,9 +205,11 @@ export default function Dashboard() {
       color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     },
     {
-      label: 'Auto-Save Rate',
-      value: formatCurrency(totalAutoSaveRate),
-      subtext: `Avg debit size: ${formatCurrency(avgAutoSaveAmount)}`,
+      label: hasAutoSaveData ? 'Total Auto-Saved' : 'Total Target Goal',
+      value: formatCurrency(hasAutoSaveData ? totalAutoSaved : totalTargetAmount),
+      subtext: hasAutoSaveData
+        ? `Avg debit size: ${formatCurrency(avgAutoSaveAmount)}`
+        : `Target amount for all plans`,
       icon: TrendingUp,
       color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
     },
@@ -203,10 +232,10 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              Welcome back, {firstName || 'User'}
+              Savings Command Center
             </h1>
-            <p className="text-sm text-muted-foreground mt-1.5">
-              Here is your detailed smart savings dashboard.
+            <p className="text-sm text-muted-foreground mt-1.5 font-medium">
+              Gamifying and Automating Wealth-Building
             </p>
           </div>
 
@@ -290,30 +319,26 @@ export default function Dashboard() {
                     axisLine={false}
                     tickFormatter={(val) => `₦${val / 1000}k`}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--color-card)',
-                      borderColor: 'var(--color-border)',
-                      borderRadius: '12px',
-                      color: 'var(--color-foreground)',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      boxShadow: 'var(--shadow-card)',
-                    }}
-                    formatter={(
-                      value: string | number | readonly (string | number)[] | undefined,
-                    ) => [
-                      formatCurrency(Number(Array.isArray(value) ? value[0] : value || 0)),
-                      'Saved',
-                    ]}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Area
-                    type="monotone"
+                    type="linear"
                     dataKey="Savings"
                     stroke="hsl(217, 71%, 55%)"
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#colorSavings)"
+                    dot={{
+                      r: 3.5,
+                      stroke: 'hsl(217, 71%, 55%)',
+                      strokeWidth: 1.5,
+                      fill: 'var(--color-card)',
+                    }}
+                    activeDot={{
+                      r: 5.5,
+                      stroke: 'hsl(217, 71%, 55%)',
+                      strokeWidth: 2,
+                      fill: 'hsl(217, 71%, 55%)',
+                    }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -459,3 +484,74 @@ export default function Dashboard() {
     </DashboardLayout>
   );
 }
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      name: string;
+      dateLabel: string;
+      Savings: number;
+      txAmount: number;
+      txTitle: string;
+      txType: string;
+    };
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    if (data.txType === 'system') {
+      return (
+        <div className="rounded-2xl border border-border bg-card p-3 shadow-card text-xs font-semibold text-foreground">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+            {data.dateLabel}
+          </p>
+          <p className="mt-1 text-foreground font-black text-sm">Initial Balance: ₦0</p>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-card text-xs font-semibold text-foreground space-y-1.5 min-w-[200px]">
+        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider border-b border-border/40 pb-1.5">
+          {data.dateLabel}
+        </p>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-muted-foreground">Transaction:</span>
+          <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+            +
+            {new Intl.NumberFormat('en-NG', {
+              style: 'currency',
+              currency: 'NGN',
+              maximumFractionDigits: 0,
+            }).format(data.txAmount)}
+          </span>
+        </div>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-muted-foreground">Goal Plan:</span>
+          <span className="font-extrabold text-foreground truncate max-w-[120px]">
+            {data.txTitle}
+          </span>
+        </div>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-muted-foreground">Type:</span>
+          <span className="font-extrabold bg-primary/10 text-primary dark:bg-indigo-400/20 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] capitalize">
+            {data.txType}
+          </span>
+        </div>
+        <div className="flex justify-between items-center gap-4 pt-1.5 border-t border-border/40 font-bold">
+          <span className="text-foreground">Total Balance:</span>
+          <span className="text-foreground font-black">
+            {new Intl.NumberFormat('en-NG', {
+              style: 'currency',
+              currency: 'NGN',
+              maximumFractionDigits: 0,
+            }).format(data.Savings)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};

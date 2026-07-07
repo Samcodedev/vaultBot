@@ -13,7 +13,13 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as { rawBody?: string }).rawBody = buf.toString();
+    },
+  }),
+);
 
 app.use('/api', apiRouter);
 

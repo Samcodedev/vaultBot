@@ -1,0 +1,65 @@
+Top up via the User's Virtual Account
+
+This is the simplest and most scalable approach.
+
+Flow
+User
+    │
+Transfers money
+to Virtual Account
+    │
+    ▼
+Nomba receives transfer
+    │
+    ▼
+Nomba sends Webhook
+    │
+    ▼
+Your backend verifies transaction
+    │
+    ▼
+Find User by accountRef / accountNumber
+    │
+    ▼
+Credit Savings Plan
+    │
+    ▼
+Save Transaction
+    │
+    ▼
+Notify User
+
+A Nomba virtual account is designed to receive bank transfers. The funds are automatically routed to your parent account, and Nomba sends webhook notifications so you can reconcile the payment to the correct customer. Virtual accounts themselves do not hold balances.
+
+Your backend should do:
+onVirtualAccountWebhook()
+
+↓
+
+Verify webhook signature
+
+↓
+
+Find virtual account
+
+↓
+
+Find user
+
+↓
+
+Find savings plan
+
+↓
+
+Credit savings
+
+↓
+
+Create transaction
+
+↓
+
+Send notification
+
+This is how customers can manually top up a savings plan.

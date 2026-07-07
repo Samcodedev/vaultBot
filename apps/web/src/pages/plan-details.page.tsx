@@ -10,8 +10,6 @@ import {
   Trash2,
   Trophy,
   Activity,
-  PlusCircle,
-  TrendingUp,
   Percent,
   Loader2,
   ShieldCheck,
@@ -19,12 +17,13 @@ import {
   CheckCircle2,
   RefreshCw,
   PlayCircle,
+  Copy,
+  Landmark,
 } from 'lucide-react';
 import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { planApi, transactionApi, nombaApi } from '@/lib/api';
 import { teams } from '../../../../data/team.data';
-
 const NIGERIAN_BANKS = [
   {
     code: '058',
@@ -93,27 +92,32 @@ const NIGERIAN_BANKS = [
     logoColor: 'bg-violet-600/10 text-violet-600',
   },
 ];
-
 export default function PlanDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isSetupMandateSubpage = pathname.endsWith('/setup-mandate');
-
   const { token, user } = useAuth();
-
   const [plan, setPlan] = useState<Plan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  // State for manual deposit form
-  const [depositAmount, setDepositAmount] = useState('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [isSubmittingDeposit, setIsSubmittingDeposit] = useState(false);
-
-  // States for Direct Debit Mandate
+  const [copiedAccount, setCopiedAccount] = useState(false);
+  const [copiedPlanId, setCopiedPlanId] = useState(false);
+  const handleCopyText = (text: string, type: 'account' | 'plan') => {
+    navigator.clipboard.writeText(text);
+    if (type === 'account') {
+      setCopiedAccount(true);
+      toast.success('Account number copied to clipboard');
+      setTimeout(() => setCopiedAccount(false), 2000);
+    } else {
+      setCopiedPlanId(true);
+      toast.success('Plan ID copied to clipboard');
+      setTimeout(() => setCopiedPlanId(false), 2000);
+    }
+  };
   const [customerAccountNumber, setCustomerAccountNumber] = useState(user?.accountNumber || '');
-  const [bankCode, setBankCode] = useState('058'); // defaults to GTB
+  const [bankCode, setBankCode] = useState('058');
   const [customerAccountName, setCustomerAccountName] = useState(
     user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
   );
@@ -124,7 +128,6 @@ export default function PlanDetailsPage() {
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState('');
   const [progressionMessage, setProgressionMessage] = useState<string | null>(null);
-
   const fetchPlanDetails = useCallback(
     async (showSkeleton = true) => {
       if (!token || !id) return;
@@ -132,7 +135,6 @@ export default function PlanDetailsPage() {
         if (showSkeleton) setIsLoading(true);
         const data = await planApi.getPlanById(id, token);
         setPlan(data);
-
         const txData = await transactionApi.getPlanTransactions(id, token);
         setTransactions(txData);
       } catch (err) {
@@ -144,14 +146,12 @@ export default function PlanDetailsPage() {
     },
     [id, token],
   );
-
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPlanDetails(true);
     }, 0);
     return () => clearTimeout(timer);
   }, [fetchPlanDetails]);
-
   if (isLoading || !user) {
     return (
       <DashboardLayout>
@@ -161,7 +161,6 @@ export default function PlanDetailsPage() {
       </DashboardLayout>
     );
   }
-
   if (!plan) {
     return (
       <DashboardLayout>
@@ -183,15 +182,11 @@ export default function PlanDetailsPage() {
       </DashboardLayout>
     );
   }
-
-  // Filter transactions specific to this plan title
   const planTransactions = transactions.filter(
     (tx) => tx.planTitle.toLowerCase() === plan.title.toLowerCase(),
   );
-
   const percentage = Math.min(Math.round((plan.currentBalance / plan.targetAmount) * 100), 100);
   const remainingAmount = Math.max(plan.targetAmount - plan.currentBalance, 0);
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -199,9 +194,7 @@ export default function PlanDetailsPage() {
       maximumFractionDigits: 0,
     }).format(value);
   };
-
   const getNextDebitDateText = () => {
-    // If the plan has nextDebitDate (e.g. from backend API or populated mock), use it
     if (plan.nextDebitDate) {
       return new Date(plan.nextDebitDate).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -213,7 +206,6 @@ export default function PlanDetailsPage() {
         hour12: true,
       });
     }
-    // Otherwise calculate dynamically based on frequency (savingType) & debitScheduleTime
     const now = new Date();
     const scheduleTime = plan.debitScheduleTime || '10:00 AM';
     const timeMatch = scheduleTime.match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i);
@@ -228,7 +220,6 @@ export default function PlanDetailsPage() {
         if (ampm === 'AM' && hours === 12) hours = 0;
       }
     }
-
     const next = new Date();
     next.setHours(hours, minutes, 0, 0);
     if (next <= now) {
@@ -236,7 +227,7 @@ export default function PlanDetailsPage() {
       else if (plan.savingType === 'weekly') next.setDate(next.getDate() + 7);
       else if (plan.savingType === 'monthly') next.setMonth(next.getMonth() + 1);
       else if (plan.savingType === 'yearly') next.setFullYear(next.getFullYear() + 1);
-      else next.setDate(next.getDate() + 1); // fallback
+      else next.setDate(next.getDate() + 1);
     }
     return next.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -248,7 +239,6 @@ export default function PlanDetailsPage() {
       hour12: true,
     });
   };
-
   const getNextFixtureMock = (teamName: string) => {
     const opponents = [
       'Arsenal',
@@ -265,8 +255,6 @@ export default function PlanDetailsPage() {
     const filteredOpponents = opponents.filter(
       (opp) => opp.toLowerCase() !== teamName.toLowerCase(),
     );
-
-    // Deterministic selection based on team name hash
     let hash = 0;
     for (let i = 0; i < teamName.length; i++) {
       hash = teamName.charCodeAt(i) + ((hash << 5) - hash);
@@ -274,20 +262,14 @@ export default function PlanDetailsPage() {
     const opponentIndex = Math.abs(hash) % filteredOpponents.length;
     const opponent = filteredOpponents[opponentIndex];
     const isHome = hash % 2 === 0;
-
-    // Check if teamLogo and opponent logo exist in our teams list
     const teamInfo = teams.find((t) => t.name.toLowerCase() === teamName.toLowerCase());
     const oppInfo = teams.find((t) => t.name.toLowerCase() === opponent.toLowerCase());
-
     const opponentLogo = oppInfo?.logo;
     const teamLogo = teamInfo?.logo || plan.teamLogo;
-
-    // Calculate match date (next Saturday or Sunday at 4:00 PM)
     const matchDate = new Date();
     const daysUntilWeekend = (6 - matchDate.getDay() + 7) % 7 || 7;
     matchDate.setDate(matchDate.getDate() + daysUntilWeekend);
-    matchDate.setHours(16, 0, 0, 0); // 4:00 PM
-
+    matchDate.setHours(16, 0, 0, 0);
     const formattedMatchDate = matchDate.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -297,7 +279,6 @@ export default function PlanDetailsPage() {
       minute: 'numeric',
       hour12: true,
     });
-
     return {
       opponent,
       isHome,
@@ -308,65 +289,19 @@ export default function PlanDetailsPage() {
       awayLogo: isHome ? opponentLogo : teamLogo,
     };
   };
-
-  const handleDepositSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(depositAmount);
-
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid deposit amount');
-      return;
-    }
-
-    if (!token || !plan || !id) return;
-
-    try {
-      setIsSubmittingDeposit(true);
-
-      // Create transaction on backend (which also updates plan balance)
-      const createdTx = await transactionApi.createTransaction(
-        {
-          planId: id,
-          amount: amountNum,
-          type: 'deposit',
-        },
-        token,
-      );
-
-      // Fetch the updated plan details to refresh the screen balance and details
-      const updatedPlan = await planApi.getPlanById(id, token);
-      setPlan(updatedPlan);
-
-      // Prepend the new transaction to state
-      setTransactions((prev) => [createdTx, ...prev]);
-
-      setDepositAmount('');
-      toast.success(`Successfully deposited ${formatCurrency(amountNum)} to ${plan.title}!`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to complete deposit';
-      toast.error(errorMessage);
-    } finally {
-      setIsSubmittingDeposit(false);
-    }
-  };
-
   const handleMandateSetupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !id) return;
-
     if (!customerAccountNumber || customerAccountNumber.length !== 10) {
       toast.error('Please enter a valid 10-digit account number');
       return;
     }
-
     if (!customerAccountName) {
       toast.error('Account name is required');
       return;
     }
-
     try {
       setIsSettingUpMandate(true);
-
       setProgressionMessage('Initiating bank direct debit mandate...');
       await nombaApi.createDirectDebitMandate(
         {
@@ -379,22 +314,16 @@ export default function PlanDetailsPage() {
         token,
       );
       await new Promise((resolve) => setTimeout(resolve, 1500));
-
       setProgressionMessage('Registering mandate reference with NIBSS gateway...');
       await new Promise((resolve) => setTimeout(resolve, 1500));
-
       setProgressionMessage('Authorizing N50 validation fee transfer...');
       await new Promise((resolve) => setTimeout(resolve, 1800));
-
       setProgressionMessage('Verifying validation status and activating schedule...');
       await nombaApi.checkMandateStatus(id, token);
       await new Promise((resolve) => setTimeout(resolve, 1200));
-
       setProgressionMessage('Success! Bank mandate is fully active...');
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
       toast.success('Bank account linked and Direct Debit mandate activated successfully!');
-
       if (isSetupMandateSubpage) {
         navigate(`/dashboard/plans/${id}`);
       } else {
@@ -409,7 +338,6 @@ export default function PlanDetailsPage() {
       setProgressionMessage(null);
     }
   };
-
   const handleCheckMandateStatus = async () => {
     if (!token || !id) return;
     try {
@@ -434,7 +362,6 @@ export default function PlanDetailsPage() {
       setIsCheckingStatus(false);
     }
   };
-
   const handleTriggerDebit = async () => {
     if (!token || !id || !plan) return;
     try {
@@ -454,17 +381,13 @@ export default function PlanDetailsPage() {
       setIsTriggeringDebit(false);
     }
   };
-
   const handleDeletePlan = () => {
     toast.error('Deleting savings plans is not supported yet.');
     setIsConfirmingDelete(false);
   };
-
   const selectedBank = NIGERIAN_BANKS.find((b) => b.code === bankCode) || NIGERIAN_BANKS[0];
-
   const renderMandateCard = () => {
     if (!plan) return null;
-
     if (progressionMessage) {
       return (
         <div className="rounded-2xl border border-border bg-card p-8 shadow-card flex flex-col items-center justify-center text-center space-y-6 min-h-[300px] transition-all">
@@ -481,7 +404,6 @@ export default function PlanDetailsPage() {
         </div>
       );
     }
-
     return (
       <div className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-6">
         <div className="flex items-center justify-between border-b border-border/40 pb-4">
@@ -511,7 +433,6 @@ export default function PlanDetailsPage() {
             </span>
           </div>
         </div>
-
         {!plan.mandateId ? (
           <form onSubmit={handleMandateSetupSubmit} className="space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed font-medium">
@@ -520,7 +441,6 @@ export default function PlanDetailsPage() {
               <strong>{plan.savingType}</strong>. Once submitted, you'll need to transfer ₦50 to
               activate the mandate.
             </p>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
@@ -542,7 +462,6 @@ export default function PlanDetailsPage() {
                     </div>
                     <span className="text-muted-foreground text-[10px]">▼</span>
                   </button>
-
                   {isBankDropdownOpen && (
                     <>
                       <div
@@ -597,7 +516,6 @@ export default function PlanDetailsPage() {
                   )}
                 </div>
               </div>
-
               <div>
                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                   Account Number
@@ -611,7 +529,6 @@ export default function PlanDetailsPage() {
                   className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-3 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary"
                 />
               </div>
-
               <div>
                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                   Account Name (Registered with Bank)
@@ -624,7 +541,6 @@ export default function PlanDetailsPage() {
                   className="w-full text-sm rounded-xl border border-border bg-muted/20 px-3.5 py-3 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary"
                 />
               </div>
-
               <div>
                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                   Customer Billing Address
@@ -638,7 +554,6 @@ export default function PlanDetailsPage() {
                 />
               </div>
             </div>
-
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
@@ -683,7 +598,6 @@ export default function PlanDetailsPage() {
                 </ul>
               </div>
             </div>
-
             <div className="flex justify-between items-center pt-2 gap-3">
               <button
                 type="button"
@@ -722,7 +636,6 @@ export default function PlanDetailsPage() {
                 </p>
               </div>
             </div>
-
             <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/10 text-xs font-semibold text-foreground">
               <div className="grid grid-cols-3 border-b border-border/40 p-3 items-center">
                 <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
@@ -741,7 +654,6 @@ export default function PlanDetailsPage() {
                 </span>
               </div>
             </div>
-
             <div className="flex justify-between items-center pt-2 gap-3">
               <button
                 type="button"
@@ -776,7 +688,6 @@ export default function PlanDetailsPage() {
       </div>
     );
   };
-
   if (isSetupMandateSubpage) {
     return (
       <DashboardLayout>
@@ -791,9 +702,7 @@ export default function PlanDetailsPage() {
               <strong>{plan?.title}</strong> so we can start automating your savings.
             </p>
           </div>
-
           {renderMandateCard()}
-
           {/* Skip link */}
           {!plan?.autoSaveEnabled && (
             <div className="flex justify-center pt-2">
@@ -809,7 +718,6 @@ export default function PlanDetailsPage() {
       </DashboardLayout>
     );
   }
-
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-5xl mx-auto">
@@ -842,7 +750,6 @@ export default function PlanDetailsPage() {
               </p>
             </div>
           </div>
-
           <div className="flex items-center gap-2 self-start sm:self-auto">
             {isConfirmingDelete ? (
               <div className="flex items-center gap-2">
@@ -869,11 +776,10 @@ export default function PlanDetailsPage() {
             )}
           </div>
         </div>
-
         {/* Dashboard Grid */}
         <div className="grid gap-6 md:grid-cols-3">
           {/* Progress Card */}
-          <div className="md:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-card flex flex-col justify-between relative overflow-hidden">
+          <div className="md:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-card relative overflow-hidden h-fit">
             <div>
               <div className="flex justify-between items-start">
                 <div>
@@ -893,7 +799,6 @@ export default function PlanDetailsPage() {
                   <span>{percentage}% Saved</span>
                 </div>
               </div>
-
               {/* Curated Gradients Progress Bar */}
               <div className="mt-8">
                 <div className="w-full h-4 bg-muted rounded-full overflow-hidden relative shadow-inner">
@@ -907,7 +812,6 @@ export default function PlanDetailsPage() {
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-border/40">
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -927,7 +831,6 @@ export default function PlanDetailsPage() {
                 </div>
               </div>
             </div>
-
             {remainingAmount > 0 ? (
               <div className="mt-6 bg-muted/30 border border-border/40 rounded-xl p-3.5 text-xs font-semibold text-muted-foreground flex items-center justify-between">
                 <span>Remaining target balance needed:</span>
@@ -942,53 +845,110 @@ export default function PlanDetailsPage() {
               </div>
             )}
           </div>
-
-          {/* Quick Deposit Actions */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-card flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-foreground text-base">Quick Deposit</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Top up your goal manually at any time
-              </p>
-
-              <form onSubmit={handleDepositSubmit} className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                    Amount to Deposit (₦)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                      ₦
-                    </span>
-                    <input
-                      type="number"
-                      placeholder="e.g. 5000"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      className="w-full text-sm rounded-xl border border-border bg-muted/20 pl-8 pr-3.5 py-3 text-foreground font-semibold placeholder-muted-foreground/60 focus:outline-none focus:border-primary"
-                    />
+          {/* Deposit Side Column */}
+          <div className="space-y-6">
+            {/* Manual Top-Up via Bank Transfer Card */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-5">
+              <div>
+                <h3 className="font-bold text-foreground text-base">Top Up via Bank Transfer</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Transfer manually from any banking app
+                </p>
+              </div>
+              {user?.accountNumber ? (
+                <div className="space-y-4">
+                  <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/10 text-xs font-semibold text-foreground">
+                    <div className="grid grid-cols-3 border-b border-border/40 p-3 items-center">
+                      <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
+                        Bank Name
+                      </span>
+                      <span className="col-span-2 text-right font-extrabold text-foreground">
+                        {user.bankName || 'Nombank MFB'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 border-b border-border/40 p-3 items-center">
+                      <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
+                        Account Name
+                      </span>
+                      <span className="col-span-2 text-right font-extrabold text-foreground truncate block">
+                        {user.bankAccountName || `${user.firstName} ${user.lastName}`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 p-3 items-center">
+                      <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
+                        Account No.
+                      </span>
+                      <div className="col-span-2 flex items-center justify-end gap-2">
+                        <span className="font-mono font-extrabold text-foreground">
+                          {user.accountNumber}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(user.accountNumber || '', 'account')}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                          title="Copy Account Number"
+                        >
+                          {copiedAccount ? (
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-primary/5 border border-primary/10 rounded-xl space-y-2">
+                    <p className="text-[11px] text-foreground font-bold leading-relaxed">
+                      💡 How to direct funds to this plan:
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                      Copy and paste the Plan ID or Plan Name below into the{' '}
+                      <strong>transfer narration/description</strong> in your bank app so we can
+                      route the top-up correctly:
+                    </p>
+                    <div className="flex items-center justify-between gap-2 bg-card border border-border p-2 rounded-lg text-[10px]">
+                      <span className="font-mono font-bold truncate text-muted-foreground">
+                        Plan ID: {plan.id}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(plan.id, 'plan')}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                        title="Copy Plan ID"
+                      >
+                        {copiedPlanId ? (
+                          <CheckCircle2 size={10} className="text-emerald-500" />
+                        ) : (
+                          <Copy size={10} />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingDeposit}
-                  className="w-full py-3 rounded-xl gradient-primary text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <PlusCircle size={14} /> {isSubmittingDeposit ? 'Depositing...' : 'Deposit Funds'}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-border/40 text-[10px] text-muted-foreground leading-relaxed flex items-start gap-1.5">
-              <TrendingUp size={14} className="text-primary shrink-0" />
-              <span>
-                Manual deposits immediately adjust your balance and are logged under your activity.
-              </span>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-4 flex gap-3 text-amber-600 dark:text-amber-400 text-xs font-semibold leading-relaxed">
+                    <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-foreground">Virtual Account Required</p>
+                      <p className="mt-1 font-medium text-muted-foreground">
+                        You need a Nomba virtual account to connect automated triggers and perform
+                        manual top-ups.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/dashboard/profile')}
+                    className="w-full py-3 rounded-xl gradient-primary text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Landmark size={14} /> Set Up Virtual Account
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-
         {/* Savings Strategy and Associated Team Info */}
         <div className="grid gap-6 md:grid-cols-3">
           {/* Next Debit Schedule Card */}
@@ -1001,7 +961,6 @@ export default function PlanDetailsPage() {
                   Automated Vault Debit
                 </span>
               </div>
-
               {/* Details table format */}
               <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/10 text-xs font-semibold text-foreground">
                 <div className="grid grid-cols-3 border-b border-border/40 p-3 items-center">
@@ -1035,7 +994,6 @@ export default function PlanDetailsPage() {
                   </span>
                 </div>
               </div>
-
               <div className="text-[10px] text-muted-foreground font-medium bg-primary/5 border border-primary/10 rounded-xl p-3.5 leading-relaxed">
                 Automated debits run based on your saving frequency (
                 <strong>{plan.savingType}</strong>) at{' '}
@@ -1052,7 +1010,6 @@ export default function PlanDetailsPage() {
                   Match Play Trigger
                 </span>
               </div>
-
               {plan.teamName ? (
                 plan.nextFixtureId === null ? (
                   <div className="space-y-5">
@@ -1094,7 +1051,6 @@ export default function PlanDetailsPage() {
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                           Upcoming Premier League Matchplay
                         </p>
-
                         {/* Visual matchup board */}
                         <div className="rounded-xl border border-border bg-muted/30 p-5 flex items-center justify-between gap-4 relative overflow-hidden">
                           {/* Home team */}
@@ -1117,7 +1073,6 @@ export default function PlanDetailsPage() {
                               {fixture.isHome ? 'Home' : 'Away'}
                             </span>
                           </div>
-
                           {/* VS center indicator */}
                           <div className="flex flex-col items-center gap-1 justify-center shrink-0">
                             <span className="text-base font-black text-muted-foreground/40 italic">
@@ -1127,7 +1082,6 @@ export default function PlanDetailsPage() {
                               PL
                             </span>
                           </div>
-
                           {/* Away team */}
                           <div className="flex-1 flex flex-col items-center text-center gap-2">
                             {fixture.awayLogo ? (
@@ -1149,7 +1103,6 @@ export default function PlanDetailsPage() {
                             </span>
                           </div>
                         </div>
-
                         {/* Details list/table format */}
                         <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/10 text-xs font-semibold text-foreground">
                           <div className="grid grid-cols-3 border-b border-border/40 p-3 items-center">
@@ -1174,7 +1127,6 @@ export default function PlanDetailsPage() {
                             </span>
                           </div>
                         </div>
-
                         <div className="text-[10px] text-muted-foreground font-medium bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3.5 leading-relaxed">
                           Matchday results are checked automatically. If{' '}
                           <strong>{plan.teamName}</strong> wins this fixture,{' '}
@@ -1190,7 +1142,6 @@ export default function PlanDetailsPage() {
               )}
             </div>
           )}
-
           {/* Connected Football Team Details */}
           {plan.savingPlan === 'fantasy-savings' && plan.teamName ? (
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card flex flex-col justify-between">
@@ -1198,19 +1149,24 @@ export default function PlanDetailsPage() {
                 <h3 className="font-bold text-foreground text-base border-b border-border/40 pb-2">
                   Linked Team
                 </h3>
-
                 <div className="flex items-center gap-4 mt-5">
-                  {plan.teamLogo ? (
-                    <img
-                      src={plan.teamLogo}
-                      alt={plan.teamName}
-                      className="h-16 w-16 object-contain bg-muted/30 rounded-2xl p-2 border border-border/60"
-                    />
-                  ) : (
-                    <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
-                      <Trophy size={28} />
-                    </div>
-                  )}
+                  {(() => {
+                    const teamInfo = teams.find(
+                      (t) => t.name.toLowerCase() === plan.teamName?.toLowerCase(),
+                    );
+                    const logoUrl = plan.teamLogo || teamInfo?.logo;
+                    return logoUrl ? (
+                      <img
+                        src={logoUrl}
+                        alt={plan.teamName}
+                        className="h-16 w-16 object-contain bg-muted/30 rounded-2xl p-2 border border-border/60"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
+                        <Trophy size={28} />
+                      </div>
+                    );
+                  })()}
                   <div>
                     <p className="text-base font-extrabold text-foreground">{plan.teamName}</p>
                     <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider mt-0.5">
@@ -1219,7 +1175,6 @@ export default function PlanDetailsPage() {
                   </div>
                 </div>
               </div>
-
               <div className="mt-6 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 text-[10px] text-muted-foreground font-medium leading-relaxed">
                 VaultBot queries official match results following Premier League matchdays to
                 identify wins and automatically debit your vault.
@@ -1231,7 +1186,6 @@ export default function PlanDetailsPage() {
                 <h3 className="font-bold text-foreground text-base border-b border-border/40 pb-2">
                   Plan Metadata
                 </h3>
-
                 <div className="space-y-3.5 mt-5">
                   <div className="flex justify-between items-center text-xs font-semibold">
                     <span className="text-muted-foreground">Status</span>
@@ -1247,7 +1201,6 @@ export default function PlanDetailsPage() {
                   </div>
                 </div>
               </div>
-
               <div className="mt-6 bg-primary/5 border border-primary/10 rounded-xl p-3 text-[10px] text-muted-foreground font-medium leading-relaxed">
                 Funds are secured and will continue to debit based on the frequency until target is
                 achieved.
@@ -1255,7 +1208,6 @@ export default function PlanDetailsPage() {
             </div>
           )}
         </div>
-
         {/* Transactions Table for this goal */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="flex items-center justify-between mb-4 border-b border-border/40 pb-3">
@@ -1269,7 +1221,6 @@ export default function PlanDetailsPage() {
               <Activity size={16} />
             </div>
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-semibold text-foreground">
               <thead>

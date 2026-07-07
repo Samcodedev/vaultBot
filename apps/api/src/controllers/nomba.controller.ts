@@ -1,4 +1,6 @@
-import type { Response } from 'express';
+import crypto from 'crypto';
+
+import type { Request, Response } from 'express';
 
 import prisma from '../config/db.js';
 import {
@@ -13,6 +15,7 @@ import { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND, logger } from '../utils/
 
 const UNAUTHORIZED_ACCESS = 'Unauthorized access';
 const SAVINGS_PLAN_NOT_FOUND = 'Savings plan not found or does not belong to this user';
+const USER_NOT_FOUND = 'User not found';
 
 export const createNombaAccount = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -26,7 +29,6 @@ export const createNombaAccount = async (req: AuthenticatedRequest, res: Respons
       });
     }
 
-    // 1. Fetch user to check if they already have a virtual account
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -34,7 +36,7 @@ export const createNombaAccount = async (req: AuthenticatedRequest, res: Respons
     if (!user) {
       return res.status(NOT_FOUND.STATUS_CODE).json({
         success: false,
-        message: 'User not found',
+        message: USER_NOT_FOUND,
       });
     }
 
@@ -49,13 +51,11 @@ export const createNombaAccount = async (req: AuthenticatedRequest, res: Respons
       });
     }
 
-    // 2. Call Nomba API to create virtual account
     const result = await createVirtualAccount({
       userId,
       fullName,
     });
 
-    // Nomba's API response structure: { code: "00", description: "Success", data: { bankAccountNumber: "...", accountHolderId: "...", bankName: "..." } }
     if (result.code !== '00' && result.code !== '200') {
       return res.status(BAD_REQUEST.STATUS_CODE).json({
         success: false,
@@ -65,7 +65,6 @@ export const createNombaAccount = async (req: AuthenticatedRequest, res: Respons
 
     const { bankAccountNumber, accountHolderId, bankName, bankAccountName } = result.data;
 
-    // 3. Update user record in DB
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -120,7 +119,6 @@ export const initiateDirectDebit = async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // 1. Fetch user to get details
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -128,11 +126,10 @@ export const initiateDirectDebit = async (req: AuthenticatedRequest, res: Respon
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: USER_NOT_FOUND,
       });
     }
 
-    // 2. Fetch the plan
     const plan = await prisma.plan.findFirst({
       where: { id: planId, userId },
     });
@@ -144,7 +141,6 @@ export const initiateDirectDebit = async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // Map frequency (savingType) to Nomba's frequency
     const freqMap: Record<string, string> = {
       daily: 'DAILY',
       weekly: 'WEEKLY',
@@ -153,13 +149,11 @@ export const initiateDirectDebit = async (req: AuthenticatedRequest, res: Respon
     };
     const frequency = freqMap[plan.savingType.toLowerCase()] || 'WEEKLY';
 
-    // Format dates to YYYY-MM-DDTHH:mm
     const startDateStr = plan.startDate.toISOString().substring(0, 16);
     const endDateStr = plan.endDate.toISOString().substring(0, 16);
 
     const merchantReference = `VB-MANDATE-${plan.id}-${Date.now()}`;
 
-    // 3. Make Nomba API Call
     const payload = {
       customerAccountNumber,
       bankCode,
@@ -188,7 +182,6 @@ export const initiateDirectDebit = async (req: AuthenticatedRequest, res: Respon
 
     const { mandateId, description } = response.data;
 
-    // 4. Update the Plan in DB
     await prisma.plan.update({
       where: { id: planId },
       data: {
@@ -231,7 +224,6 @@ export const checkMandateStatus = async (req: AuthenticatedRequest, res: Respons
       });
     }
 
-    // 1. Fetch the plan
     const plan = await prisma.plan.findFirst({
       where: { id: planId, userId },
     });
@@ -250,15 +242,12 @@ export const checkMandateStatus = async (req: AuthenticatedRequest, res: Respons
       });
     }
 
-    // 2. Fetch status from Nomba
     const response = await getNombaMandateStatus(plan.mandateId);
 
     const { mandateStatus, mandateAdviceStatus } = response.data;
 
-    // 3. Check if mandate is fully active
     const isActive = mandateStatus === 'ACTIVE' && mandateAdviceStatus === 'ADVICE_SENT';
 
-    // 4. Update the Plan in DB
     const updatedPlan = await prisma.plan.update({
       where: { id: planId },
       data: {
@@ -301,7 +290,6 @@ export const getPlanMandateDetails = async (req: AuthenticatedRequest, res: Resp
       });
     }
 
-    // 1. Fetch the plan
     const plan = await prisma.plan.findFirst({
       where: { id: planId, userId },
     });
@@ -320,7 +308,6 @@ export const getPlanMandateDetails = async (req: AuthenticatedRequest, res: Resp
       });
     }
 
-    // 2. Fetch full details from Nomba
     const response = await getNombaMandate(plan.mandateId);
 
     return res.status(200).json({
@@ -355,7 +342,6 @@ export const triggerDebitMandate = async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // 1. Fetch the plan
     const plan = await prisma.plan.findFirst({
       where: { id: planId, userId },
     });
@@ -382,11 +368,9 @@ export const triggerDebitMandate = async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // 2. Call Nomba API to debit mandate
     const response = await debitNombaMandate(plan.mandateId, plan.amount);
 
     if (response.code !== '00' && response.code !== '200' && response.data?.status !== 'SUCCESS') {
-      // Record failed transaction
       await prisma.transaction.create({
         data: {
           planId: plan.id,
@@ -403,7 +387,6 @@ export const triggerDebitMandate = async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // 3. On success, update plan balance and record successful transaction inside DB transaction
     const [transaction] = await prisma.$transaction([
       prisma.transaction.create({
         data: {
@@ -443,6 +426,196 @@ export const triggerDebitMandate = async (req: AuthenticatedRequest, res: Respon
     return res.status(500).json({
       success: false,
       message: err.message || 'An unexpected error occurred while processing mandate debit',
+    });
+  }
+};
+
+export const handleNombaWebhook = async (req: Request, res: Response) => {
+  try {
+    const signature = req.headers['nomba-signature'] || req.headers['x-nomba-signature'];
+    const secret = process.env.NOMBA_WEBHOOK_SECRET || process.env.NOMBA_CLIENT_SECRET || 'secret';
+
+    let isSignatureValid = false;
+    const reqWithRawBody = req as Request & { rawBody?: string };
+    if (signature && reqWithRawBody.rawBody) {
+      try {
+        const hmac = crypto.createHmac('sha256', secret);
+        hmac.update(reqWithRawBody.rawBody);
+        const calculatedSignature = hmac.digest('hex');
+        isSignatureValid = calculatedSignature === signature;
+      } catch (err) {
+        logger.error('Error verifying Nomba webhook signature:', err);
+      }
+    }
+
+    if (!isSignatureValid && process.env.NODE_ENV === 'production') {
+      logger.error('Invalid signature for Nomba webhook in production environment');
+      return res.status(401).json({ success: false, message: 'Unauthorized: Invalid signature' });
+    } else if (!isSignatureValid) {
+      logger.warn(
+        'Nomba webhook signature verification failed/missing in non-production, proceeding anyway.',
+      );
+    }
+
+    const event = req.body;
+    logger.info(`Received Nomba webhook payload: ${JSON.stringify(event, null, 2)}`);
+
+    const isPaymentSuccess =
+      event.event_type === 'payment_success' || event.eventType === 'payment_success';
+    const isDirectData =
+      event.accountNumber ||
+      event.virtualAccountNumber ||
+      event.bankAccountNumber ||
+      event.customerAccountNumber;
+
+    if (!isPaymentSuccess && !isDirectData) {
+      logger.info(`Ignored Nomba webhook event type: ${event.event_type || event.eventType}`);
+      return res.status(200).json({ success: true, message: 'Event ignored' });
+    }
+
+    const eventData = event.data || event || {};
+    const orderData = eventData.order || event.order || {};
+    const txDetails = eventData.transactionDetails || event.transactionDetails || {};
+
+    const accountNumber =
+      eventData.accountNumber ||
+      eventData.virtualAccountNumber ||
+      eventData.bankAccountNumber ||
+      eventData.customerAccountNumber ||
+      orderData.accountNumber ||
+      txDetails.accountNumber ||
+      event.accountNumber ||
+      event.virtualAccountNumber ||
+      event.bankAccountNumber ||
+      event.customerAccountNumber;
+
+    const accountId =
+      eventData.accountId ||
+      eventData.accountRef ||
+      orderData.accountRef ||
+      eventData.accountHolderId ||
+      event.accountId ||
+      event.accountRef ||
+      event.accountHolderId;
+
+    const amountValue =
+      eventData.amount ||
+      orderData.amount ||
+      eventData.amountPaid ||
+      event.amount ||
+      event.amountPaid;
+    const amount = amountValue ? parseFloat(amountValue) : 0;
+
+    const narration =
+      eventData.narration ||
+      orderData.narration ||
+      eventData.description ||
+      orderData.description ||
+      event.narration ||
+      event.description ||
+      '';
+
+    if (!accountNumber && !accountId) {
+      logger.warn('Nomba webhook payload missing accountNumber and accountId');
+      return res
+        .status(400)
+        .json({ success: false, message: 'Missing accountNumber or accountId' });
+    }
+
+    if (amount <= 0) {
+      logger.warn(`Nomba webhook: Invalid amount ${amount}`);
+      return res.status(400).json({ success: false, message: 'Invalid transaction amount' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [...(accountNumber ? [{ accountNumber }] : []), ...(accountId ? [{ accountId }] : [])],
+      },
+    });
+
+    if (!user) {
+      logger.warn(
+        `Nomba webhook: User not found for accountNumber: ${accountNumber}, accountId: ${accountId}`,
+      );
+      return res.status(404).json({ success: false, message: USER_NOT_FOUND });
+    }
+
+    const plans = await prisma.plan.findMany({
+      where: { userId: user.id },
+    });
+
+    if (plans.length === 0) {
+      logger.warn(`Nomba webhook: No savings plans found for user ID: ${user.id}`);
+      return res.status(404).json({ success: false, message: 'No savings plans found' });
+    }
+
+    let plan = null;
+
+    if (narration) {
+      const uuidRegex = /[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/i;
+      const matched = narration.match(uuidRegex);
+      if (matched) {
+        const matchedPlanId = matched[0];
+        const normalizeId = (idStr: string) => idStr.replace(/-/g, '').toLowerCase();
+        plan = plans.find((p) => normalizeId(p.id) === normalizeId(matchedPlanId));
+      }
+    }
+
+    if (!plan && narration) {
+      plan = plans.find((p) => narration.toLowerCase().includes(p.name.toLowerCase()));
+    }
+
+    if (!plan && plans.length === 1) {
+      plan = plans[0];
+    }
+
+    if (!plan) {
+      plan = plans.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
+      logger.info(
+        `Nomba webhook: Multiple plans found, but no direct match in narration "${narration}". Defaulting to most recently updated plan: ${plan.name} (${plan.id})`,
+      );
+    }
+
+    const [updatedPlan, transaction] = await prisma.$transaction([
+      prisma.plan.update({
+        where: { id: plan.id },
+        data: {
+          currentBalance: {
+            increment: amount,
+          },
+        },
+      }),
+      prisma.transaction.create({
+        data: {
+          planId: plan.id,
+          userId: user.id,
+          amount: amount,
+          type: 'deposit',
+          status: 'completed',
+        },
+      }),
+    ]);
+
+    logger.info(
+      `Successfully processed manual top-up of ${amount} for plan ${plan.name} (user: ${user.email}) via Nomba webhook`,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Manual top-up processed successfully',
+      data: {
+        planId: plan.id,
+        planTitle: plan.name,
+        newBalance: updatedPlan.currentBalance,
+        transactionId: transaction.id,
+      },
+    });
+  } catch (error: unknown) {
+    const err = error as Error;
+    logger.error('Error in handleNombaWebhook controller:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'An unexpected error occurred while processing webhook payment',
     });
   }
 };

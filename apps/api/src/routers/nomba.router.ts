@@ -6,6 +6,7 @@ import {
   checkMandateStatus,
   getPlanMandateDetails,
   triggerDebitMandate,
+  handleNombaWebhook,
 } from '../controllers/nomba.controller.js';
 import { authenticateUser } from '../middlewares/index.js';
 import {
@@ -14,6 +15,9 @@ import {
 } from '../middlewares/validators/index.js';
 
 const router = Router();
+
+// Public webhook endpoint
+router.post('/webhook/payment', handleNombaWebhook);
 
 router.use(authenticateUser);
 

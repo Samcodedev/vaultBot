@@ -62,9 +62,9 @@ export default function ProfilePage() {
     <DashboardLayout>
       <div className="space-y-8 pb-12">
         {/* Header Banner */}
-        <div className="relative h-44 sm:h-52 w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 shadow-lg border border-white/10">
-          <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        <div className="relative h-44 sm:h-52 w-full rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 shadow-lg border border-white/10">
+          <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px] rounded-3xl overflow-hidden" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-3xl overflow-hidden" />
 
           <div className="absolute -bottom-10 left-6 sm:left-10 flex flex-col sm:flex-row sm:items-end gap-4.5">
             <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl bg-card border-4 border-background flex items-center justify-center text-primary font-black text-3xl sm:text-4xl shadow-elevated uppercase relative overflow-hidden group">
@@ -193,14 +193,14 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between">
+                  <div className="mt-4 flex items-center justify-between">
                     <div className="w-9 h-7 rounded bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-300 shadow-inner flex items-center justify-center overflow-hidden border border-amber-500/20">
                       <div className="w-full h-full opacity-40 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:6px_6px]" />
                     </div>
                     <Fingerprint size={20} className="text-zinc-500" />
                   </div>
 
-                  <div className="mt-5">
+                  <div className="mt-4">
                     {user.accountNumber ? (
                       <p className="text-lg font-black font-mono tracking-widest text-zinc-100 drop-shadow">
                         {user.accountNumber.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')}
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <div className="mt-4 flex justify-between items-end">
+                  <div className="mt-3 flex justify-between items-end">
                     <div className="space-y-0.5 max-w-[200px]">
                       <span className="text-[8px] font-extrabold text-zinc-500 uppercase tracking-wider block">
                         Account Holder
