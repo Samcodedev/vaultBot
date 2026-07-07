@@ -16,3 +16,5 @@ export const validate = (req: Request, res: Response, next: NextFunction): void 
 
 export * from './auth.validator.js';
 export * from './plan.validator.js';
+export * from './nomba.validator.js';
+export * from './transaction.validator.js';

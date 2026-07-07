@@ -14,17 +14,21 @@ model User {
   lastName      String?
   password      String
   phoneNumber   String?
-  accountNumber String   @unique
-  accountId     String   @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  plans         Plan[]
+  accountNumber   String   @unique
+  accountId       String   @unique
+  bankAccountName String?
+  bankName        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  plans           Plan[]
+  transactions  Transaction[]
 }
 
 model Plan {
   id             String   @id @default(uuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
 
   // Common fields
   name           String
@@ -45,6 +49,26 @@ model Plan {
   nextFixtureId   Int?
   nextFixtureDate DateTime?
 
+  // Nomba Direct Debit Mandate fields
+  mandateId           String?
+  merchantReference   String?
+  mandateStatus       String?
+  mandateAdviceStatus String?
+  autoSaveEnabled     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Float
+  type      String   // deposit | auto-save
+  status    String   @default("completed")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

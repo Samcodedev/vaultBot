@@ -10,6 +10,7 @@ import {
   X,
   Shield,
   PlusCircle,
+  User as UserIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MOCK_NOTIFICATIONS } from '@/data/dashboard.data';
@@ -51,6 +52,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Savings Plans', path: '/dashboard/plans', icon: PiggyBank },
     { name: 'Create Plan', path: '/dashboard/create', icon: PlusCircle },
     { name: 'Transactions', path: '/dashboard/transactions', icon: History },
+    { name: 'Profile', path: '/dashboard/profile', icon: UserIcon },
   ];
 
   const handleLogout = () => {

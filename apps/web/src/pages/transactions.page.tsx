@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { transactionApi } from '@/lib/api';
 
 import type { SavingsTransaction as Transaction } from '@/types';
 
 export default function TransactionsPage() {
-  const [transactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('vb_transactions');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const { token } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'deposit' | 'auto-save'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!token) return;
+      try {
+        setIsLoading(true);
+        const data = await transactionApi.getTransactions(token);
+        setTransactions(data);
+      } catch (err) {
+        console.error('Failed to load transaction history', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTransactions();
+  }, [token]);
 
   const filtered = transactions.filter((tx) => {
     const matchesFilter = filterType === 'all' || tx.type === filterType;
@@ -72,59 +88,81 @@ export default function TransactionsPage() {
 
         {/* Transactions Table */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-semibold text-foreground">
-              <thead>
-                <tr className="text-muted-foreground border-b border-border/60 pb-2">
-                  <th className="py-3 font-bold">Transaction ID</th>
-                  <th className="py-3 font-bold">Goal Plan</th>
-                  <th className="py-3 font-bold">Amount</th>
-                  <th className="py-3 font-bold">Type</th>
-                  <th className="py-3 font-bold">Status</th>
-                  <th className="py-3 font-bold text-right">Date/Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {filtered.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-3 text-muted-foreground font-mono">{tx.id}</td>
-                    <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
-                    <td className="py-3 text-emerald-600 dark:text-emerald-400 font-bold">
-                      +{formatCurrency(tx.amount)}
-                    </td>
-                    <td className="py-3">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                          tx.type === 'auto-save'
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        }`}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-semibold text-foreground">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border/60 pb-2">
+                    <th className="py-3 font-bold">Transaction ID</th>
+                    <th className="py-3 font-bold">Goal Plan</th>
+                    <th className="py-3 font-bold">Amount</th>
+                    <th className="py-3 font-bold">Type</th>
+                    <th className="py-3 font-bold">Status</th>
+                    <th className="py-3 font-bold text-right">Date/Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filtered.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-3 text-muted-foreground font-mono">{tx.id}</td>
+                      <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
+                      <td className="py-3 text-emerald-600 dark:text-emerald-400 font-bold">
+                        +{formatCurrency(tx.amount)}
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                            tx.type === 'auto-save'
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          }`}
+                        >
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right text-muted-foreground font-normal">
+                        {(() => {
+                          const d = new Date(tx.date);
+                          if (isNaN(d.getTime())) return tx.date;
+                          const datePart = d.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          });
+                          const timePart = d.toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                          });
+                          return `${datePart} • ${timePart}`;
+                        })()}
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="text-center py-8 text-muted-foreground font-semibold"
                       >
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {tx.status}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right text-muted-foreground font-normal">{tx.date}</td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="text-center py-8 text-muted-foreground font-semibold"
-                    >
-                      No matching transaction logs found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                        No matching transaction logs found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

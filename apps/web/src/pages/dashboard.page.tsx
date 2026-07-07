@@ -17,7 +17,7 @@ import {
   Cell,
 } from 'recharts';
 import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/types';
-import { planApi } from '@/lib/api';
+import { planApi, transactionApi } from '@/lib/api';
 
 export default function Dashboard() {
   const { user, token } = useAuth();
@@ -33,9 +33,8 @@ export default function Dashboard() {
         const data = await planApi.getPlans(token);
         setPlans(data);
 
-        // Retrieve transactions from local storage (or default empty)
-        const savedTx = localStorage.getItem('vb_transactions');
-        setTransactions(savedTx ? JSON.parse(savedTx) : []);
+        const txData = await transactionApi.getTransactions(token);
+        setTransactions(txData);
       } catch (err) {
         console.error('Failed to load dashboard statistics', err);
       } finally {
@@ -51,7 +50,6 @@ export default function Dashboard() {
   const activePlansCount = plans.length;
   const targetCompletedCount = plans.filter((p) => p.currentBalance >= p.targetAmount).length;
 
-  // Format helper
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -60,19 +58,101 @@ export default function Dashboard() {
     }).format(value);
   };
 
-  // Chart Data preparation
-  // 1. Growth history chart data
-  const growthData = [
-    { name: 'Jan', Savings: totalSaved * 0.4 },
-    { name: 'Feb', Savings: totalSaved * 0.55 },
-    { name: 'Mar', Savings: totalSaved * 0.7 },
-    { name: 'Apr', Savings: totalSaved * 0.8 },
-    { name: 'May', Savings: totalSaved * 0.9 },
-    { name: 'Jun', Savings: totalSaved * 0.95 },
-    { name: 'Jul', Savings: totalSaved },
-  ];
+  const formatTransactionDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const datePart = d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${datePart} • ${timePart}`;
+  };
 
-  // 2. Goal distribution pie chart data
+  const getGrowthData = () => {
+    const sortedTxs = [...transactions]
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const monthlyBalances: { [key: string]: number } = {};
+    let cumulative = 0;
+
+    const last6Months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      last6Months.push(months[d.getMonth()]);
+    }
+
+    last6Months.forEach((m) => {
+      monthlyBalances[m] = 0;
+    });
+
+    sortedTxs.forEach((tx) => {
+      const date = new Date(tx.date);
+      const monthName = months[date.getMonth()];
+      cumulative += tx.amount;
+
+      if (monthName in monthlyBalances) {
+        monthlyBalances[monthName] = cumulative;
+      }
+    });
+
+    let lastVal = 0;
+    const finalData = last6Months.map((m) => {
+      if (monthlyBalances[m] > 0) {
+        lastVal = monthlyBalances[m];
+      } else {
+        monthlyBalances[m] = lastVal;
+      }
+      return {
+        name: m,
+        Savings: monthlyBalances[m],
+      };
+    });
+
+    return finalData;
+  };
+
+  const growthData = getGrowthData();
+
+  const getSavingsGrowthPercentage = () => {
+    const data = getGrowthData();
+    if (data.length < 2) return '+0% from last month';
+    const currentMonthSavings = data[data.length - 1].Savings;
+    const prevMonthSavings = data[data.length - 2].Savings;
+    if (prevMonthSavings === 0) {
+      return currentMonthSavings > 0 ? '+100% growth' : 'No savings yet';
+    }
+    const diff = currentMonthSavings - prevMonthSavings;
+    const pct = ((diff / prevMonthSavings) * 100).toFixed(1);
+    return diff >= 0 ? `+${pct}% from last month` : `${pct}% from last month`;
+  };
+
+  const activeAutoSavePlans = plans.filter((p) => p.autoSaveEnabled);
+  const totalAutoSaveRate = activeAutoSavePlans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const avgAutoSaveAmount =
+    activeAutoSavePlans.length > 0 ? totalAutoSaveRate / activeAutoSavePlans.length : 0;
+
   const distributionData = plans.map((p) => ({
     name: p.title,
     value: p.currentBalance,
@@ -82,12 +162,11 @@ export default function Dashboard() {
 
   const firstName = user?.firstName || '';
 
-  // Stats Card data
   const stats = [
     {
       label: 'Total Saved',
       value: formatCurrency(totalSaved),
-      subtext: '+12.4% from last month',
+      subtext: getSavingsGrowthPercentage(),
       icon: Wallet,
       color: 'bg-primary/10 text-primary',
     },
@@ -100,8 +179,8 @@ export default function Dashboard() {
     },
     {
       label: 'Auto-Save Rate',
-      value: '₦32,000',
-      subtext: 'Average saved monthly',
+      value: formatCurrency(totalAutoSaveRate),
+      subtext: `Avg debit size: ${formatCurrency(avgAutoSaveAmount)}`,
       icon: TrendingUp,
       color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
     },
@@ -365,7 +444,9 @@ export default function Dashboard() {
                             {tx.status}
                           </span>
                         </td>
-                        <td className="py-3 text-right text-muted-foreground">{tx.date}</td>
+                        <td className="py-3 text-right text-muted-foreground">
+                          {formatTransactionDate(tx.date)}
+                        </td>
                       </tr>
                     ))
                   )}

@@ -139,15 +139,61 @@ export default function CreatePlan() {
         teamName: form.savingPlan === 'fantasy-savings' ? form.teamName : undefined,
       };
 
-      await planApi.createPlan(payload, token);
+      const newPlan = await planApi.createPlan(payload, token);
       toast.success(`Savings plan "${form.title}" created successfully!`);
-      navigate('/dashboard/plans');
+      navigate(`/dashboard/plans/${newPlan.id}/setup-mandate`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create savings plan';
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getVaultEstimation = () => {
+    const target = Number(form.targetAmount) || 0;
+    const saveAmount = Number(form.amount) || 0;
+    if (target <= 0 || saveAmount <= 0) return null;
+
+    const cycles = Math.ceil(target / saveAmount);
+    const estDate = new Date();
+    if (form.savingType === 'daily') {
+      estDate.setDate(estDate.getDate() + cycles);
+    } else if (form.savingType === 'weekly') {
+      estDate.setDate(estDate.getDate() + cycles * 7);
+    } else if (form.savingType === 'monthly') {
+      estDate.setMonth(estDate.getMonth() + cycles);
+    } else if (form.savingType === 'yearly') {
+      estDate.setFullYear(estDate.getFullYear() + cycles);
+    } else {
+      estDate.setDate(estDate.getDate() + cycles);
+    }
+
+    return {
+      cycles,
+      formattedDate: estDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    };
+  };
+
+  const getFantasyEstimation = () => {
+    const target = Number(form.targetAmount) || 0;
+    const saveAmount = Number(form.amount) || 0;
+    if (target <= 0 || saveAmount <= 0) return null;
+
+    const winsNeeded = Math.ceil(target / saveAmount);
+    const totalMatches = winsNeeded * 2;
+    const estMonths = Math.round(totalMatches / 4.3);
+
+    return {
+      winsNeeded,
+      totalMatches,
+      estMonths: estMonths || 1,
+      estWeeks: totalMatches,
+    };
   };
 
   const slideVariants = {
@@ -560,6 +606,30 @@ export default function CreatePlan() {
                         <strong>₦{Number(form.amount).toLocaleString()}</strong> whenever{' '}
                         <strong>{form.teamName}</strong> wins a Premier League match.
                       </p>
+
+                      {(() => {
+                        const est = getFantasyEstimation();
+                        if (!est) return null;
+                        return (
+                          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3.5 space-y-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-4">
+                            <div className="flex items-center justify-between text-foreground">
+                              <span>Estimated Wins Needed</span>
+                              <span className="font-extrabold">{est.winsNeeded} wins</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium">
+                              <span>Estimated Matches / Time</span>
+                              <span>
+                                ~{est.estWeeks} games (~{est.estMonths}{' '}
+                                {est.estMonths === 1 ? 'month' : 'months'})
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-muted-foreground/80 font-medium leading-relaxed pt-1.5 border-t border-emerald-500/10">
+                              *Calculated assuming an average of 1 match per week and a competitive
+                              50% win rate.
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -609,6 +679,25 @@ export default function CreatePlan() {
                         We will debit <strong>₦{Number(form.amount).toLocaleString()}</strong>{' '}
                         {form.savingType} at <strong>{form.debitScheduleTime}</strong>.
                       </p>
+
+                      {(() => {
+                        const est = getVaultEstimation();
+                        if (!est) return null;
+                        return (
+                          <div className="bg-primary/5 border border-primary/10 rounded-xl p-3.5 space-y-1.5 text-xs font-semibold text-primary mt-4">
+                            <div className="flex items-center justify-between text-foreground">
+                              <span>Estimated Completion Date</span>
+                              <span className="font-extrabold">{est.formattedDate}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium">
+                              <span>Estimated Save Iterations</span>
+                              <span>
+                                {est.cycles} cycles ({form.savingType})
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </motion.div>

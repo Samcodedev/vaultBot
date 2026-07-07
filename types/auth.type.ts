@@ -24,6 +24,10 @@ export interface UserResponse {
   lastName: string;
   email: string;
   phoneNumber: string | null;
+  accountNumber?: string;
+  accountId?: string;
+  bankAccountName?: string;
+  bankName?: string;
   createdAt: Date;
   updatedAt: Date;
 }

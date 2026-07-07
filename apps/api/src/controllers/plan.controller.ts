@@ -10,6 +10,7 @@ import {
   BAD_REQUEST,
   NOT_FOUND,
   UNAUTHORIZED,
+  UNAUTHORIZED_ACCESS,
   logger,
   SAVING_TYPE,
 } from '../utils/index.js';
@@ -95,6 +96,7 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
         data: {
           ...newPlan,
           title: newPlan.name,
+          debitScheduleTime: newPlan.debitSchedule,
         },
       });
     }
@@ -112,19 +114,24 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
       const teamId: number = matchedTeam.id;
       const resolvedTeamName: string = matchedTeam.name;
 
-      const nextFixture = await getNextFixture(teamId);
+      const nextFixture = await getNextFixture(teamId).catch((err) => {
+        logger.error('Error fetching next fixture from football API:', err);
+        return null;
+      });
 
-      if (!nextFixture) {
-        return res.status(BAD_REQUEST.STATUS_CODE).json({
-          success: false,
-          message: `No upcoming fixtures found for ${resolvedTeamName}. Try again when their schedule is available.`,
-        });
+      let nextDebitDate: Date;
+      let nextFixtureId: number | null = null;
+      let nextFixtureDate: Date | null = null;
+
+      if (nextFixture) {
+        nextFixtureDate = new Date(nextFixture.date);
+        nextDebitDate = new Date(nextFixtureDate.getTime() + 100 * 60 * 1000);
+        nextFixtureId = nextFixture.fixtureId;
+      } else {
+        nextDebitDate = startDate;
       }
 
-      const nextDebitDate = new Date(nextFixture.date);
-
       const endDate = calculateEndDate(savingType, targetAmountVal, amountVal, startDate);
-
       const debitSchedule = 'Match Day';
 
       const newPlan = await prisma.plan.create({
@@ -142,8 +149,8 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
           nextDebitDate,
           teamId,
           teamName: resolvedTeamName,
-          nextFixtureId: nextFixture.fixtureId,
-          nextFixtureDate: nextDebitDate,
+          nextFixtureId,
+          nextFixtureDate,
         },
         select: {
           id: true,
@@ -167,13 +174,18 @@ export const createPlan = async (req: AuthenticatedRequest, res: Response) => {
         },
       });
 
+      const message = nextFixture
+        ? `Fantasy-savings plan created! Next debit on match day: ${resolvedTeamName} vs ${nextFixture.home === resolvedTeamName ? nextFixture.away : nextFixture.home} (${nextFixture.league})`
+        : `Fantasy-savings plan created successfully! Note: Premier League is currently on break. Your savings will start when match schedules are available.`;
+
       return res.status(201).json({
         success: true,
-        message: `Fantasy-savings plan created! Next debit on match day: ${resolvedTeamName} vs ${nextFixture.home === resolvedTeamName ? nextFixture.away : nextFixture.home} (${nextFixture.league})`,
+        message,
         data: {
           ...newPlan,
           title: newPlan.name,
-          nextFixture,
+          debitScheduleTime: newPlan.debitSchedule,
+          nextFixture: nextFixture || null,
         },
       });
     }
@@ -196,7 +208,7 @@ export const getPlans = async (req: AuthenticatedRequest, res: Response) => {
     if (!userId) {
       return res.status(UNAUTHORIZED.STATUS_CODE).json({
         success: false,
-        message: 'Unauthorized access',
+        message: UNAUTHORIZED_ACCESS,
       });
     }
 
@@ -208,6 +220,7 @@ export const getPlans = async (req: AuthenticatedRequest, res: Response) => {
     const mappedPlans = plans.map((plan) => ({
       ...plan,
       title: plan.name,
+      debitScheduleTime: plan.debitSchedule,
     }));
 
     return res.status(200).json({
@@ -230,7 +243,7 @@ export const getPlanById = async (req: AuthenticatedRequest, res: Response) => {
     if (!userId) {
       return res.status(UNAUTHORIZED.STATUS_CODE).json({
         success: false,
-        message: 'Unauthorized access',
+        message: UNAUTHORIZED_ACCESS,
       });
     }
 
@@ -250,6 +263,7 @@ export const getPlanById = async (req: AuthenticatedRequest, res: Response) => {
       data: {
         ...plan,
         title: plan.name,
+        debitScheduleTime: plan.debitSchedule,
       },
     });
   } catch (error) {
@@ -269,7 +283,7 @@ export const updatePlan = async (req: AuthenticatedRequest, res: Response) => {
     if (!userId) {
       return res.status(UNAUTHORIZED.STATUS_CODE).json({
         success: false,
-        message: 'Unauthorized access',
+        message: UNAUTHORIZED_ACCESS,
       });
     }
 
@@ -376,6 +390,7 @@ export const updatePlan = async (req: AuthenticatedRequest, res: Response) => {
       data: {
         ...updatedPlan,
         title: updatedPlan.name,
+        debitScheduleTime: updatedPlan.debitSchedule,
       },
     });
   } catch (error) {

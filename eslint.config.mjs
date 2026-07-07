@@ -14,10 +14,10 @@ export default tseslint.config(
       '**/node_modules/**',
       '*.config.js',
       'eslint.config.mjs',
-      'app/api/debug*.js',
-      'app/api/test*.js',
-      'app/api/test.ts',
-      'app/api/scratch/**',
+      'apps/api/debug*.js',
+      'apps/api/test*.js',
+      'apps/api/test.ts',
+      'apps/api/scratch/**',
     ],
   },
   js.configs.recommended,
@@ -95,6 +95,13 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       'sonarjs/no-duplicate-string': 'off',
+    },
+  },
+  {
+    files: ['apps/api/test/**/*.ts'],
+    rules: {
+      'sonarjs/no-duplicate-string': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 );

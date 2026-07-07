@@ -1,6 +1,6 @@
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface ProfileDropdownProps {
   displayName: string;
@@ -45,16 +45,14 @@ export default function ProfileDropdown({
                 <p className="font-bold text-foreground">Signed in as</p>
                 <p className="text-muted-foreground truncate">{email}</p>
               </div>
-              <button
-                onClick={() => {
-                  onClose();
-                  toast.success('Profile settings page is a simulated feature.');
-                }}
+              <Link
+                to="/dashboard/profile"
+                onClick={onClose}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground text-left cursor-pointer transition-colors"
               >
                 <UserIcon size={16} />
                 My Profile
-              </button>
+              </Link>
               <button
                 onClick={onLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive text-left cursor-pointer transition-colors border-t border-border mt-1.5 pt-2"

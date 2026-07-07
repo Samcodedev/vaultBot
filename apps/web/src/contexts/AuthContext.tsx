@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (token: string, user: User) => void;
   logout: () => void;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +49,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user');
   };
 
+  const refreshUser = async () => {
+    if (token) {
+      try {
+        const userData = await authApi.getUser(token);
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (err) {
+        console.error('Failed to refresh user details', err);
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       if (token) {
@@ -73,7 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!token;
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, login, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{ user, token, isAuthenticated, login, logout, isLoading, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -8,6 +8,10 @@ export interface UserRecord {
   lastName: string | null;
   email: string;
   phoneNumber: string | null;
+  accountNumber?: string | null;
+  accountId?: string | null;
+  bankAccountName?: string | null;
+  bankName?: string | null;
   createdAt: Date;
   updatedAt: Date;
   password?: string;

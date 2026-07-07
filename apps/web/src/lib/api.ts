@@ -1,4 +1,16 @@
-import type { LoginUserInput, RegisterUserInput, AuthResponse, User, SavingsPlan } from '@/types';
+import type {
+  LoginUserInput,
+  RegisterUserInput,
+  AuthResponse,
+  User,
+  SavingsPlan,
+  SavingsTransaction,
+  VirtualAccountResponse,
+  DirectDebitMandateResponse,
+  MandateStatusResponse,
+  MandateDetailsResponse,
+  DebitMandateResponse,
+} from '@/types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -132,6 +144,172 @@ export const planApi = {
 
     if (!res.ok) {
       throw new Error(data.message || 'Failed to update savings plan');
+    }
+
+    return data.data;
+  },
+};
+
+export const nombaApi = {
+  createVirtualAccount: async (
+    fullName: string,
+    token: string,
+  ): Promise<VirtualAccountResponse> => {
+    const res = await fetch(`${API_BASE_URL}/nomba/virtual-account`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ fullName }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to set up virtual account');
+    }
+
+    return data.data;
+  },
+
+  createDirectDebitMandate: async (
+    mandateData: {
+      planId: string;
+      customerAccountNumber: string;
+      bankCode: string;
+      customerAddress: string;
+      customerAccountName: string;
+    },
+    token: string,
+  ): Promise<DirectDebitMandateResponse> => {
+    const res = await fetch(`${API_BASE_URL}/nomba/direct-debit/mandate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(mandateData),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to initiate direct debit mandate');
+    }
+
+    return data.data;
+  },
+
+  checkMandateStatus: async (planId: string, token: string): Promise<MandateStatusResponse> => {
+    const res = await fetch(`${API_BASE_URL}/nomba/direct-debit/mandate/status/${planId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to check mandate status');
+    }
+
+    return data.data;
+  },
+
+  getMandateDetails: async (planId: string, token: string): Promise<MandateDetailsResponse> => {
+    const res = await fetch(`${API_BASE_URL}/nomba/direct-debit/mandate/${planId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to fetch mandate details');
+    }
+
+    return data.data;
+  },
+
+  debitMandate: async (planId: string, token: string): Promise<DebitMandateResponse> => {
+    const res = await fetch(`${API_BASE_URL}/nomba/direct-debit/debit-mandate/${planId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to debit mandate');
+    }
+
+    return data.data;
+  },
+};
+
+export const transactionApi = {
+  getTransactions: async (token: string): Promise<SavingsTransaction[]> => {
+    const res = await fetch(`${API_BASE_URL}/transactions`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to fetch transactions');
+    }
+
+    return data.data;
+  },
+
+  createTransaction: async (
+    txData: { planId: string; amount: number; type: 'deposit' | 'auto-save' },
+    token: string,
+  ): Promise<SavingsTransaction> => {
+    const res = await fetch(`${API_BASE_URL}/transactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(txData),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to create transaction');
+    }
+
+    return data.data;
+  },
+
+  getPlanTransactions: async (planId: string, token: string): Promise<SavingsTransaction[]> => {
+    const res = await fetch(`${API_BASE_URL}/transactions/plan/${planId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to fetch plan transactions');
     }
 
     return data.data;

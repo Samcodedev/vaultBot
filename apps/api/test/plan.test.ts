@@ -185,17 +185,45 @@ describe('POST /api/plans', () => {
       expect(res.body.message).toContain('No football team found matching');
     });
 
-    it('should return 400 when no upcoming fixtures are found', async () => {
+    it('should create a fantasy-savings plan successfully even if no fixtures are found', async () => {
       mockGetNextFixture.mockResolvedValue(null);
+
+      const mockCreatedPlan = {
+        id: 'plan-uuid-pending',
+        name: validFantasyBody.title,
+        description: validFantasyBody.description,
+        savingType: validFantasyBody.savingType,
+        savingPlan: validFantasyBody.savingPlan,
+        amount: validFantasyBody.amount,
+        targetAmount: validFantasyBody.targetAmount,
+        currentBalance: 0,
+        startDate: new Date(validFantasyBody.startDate),
+        endDate: new Date(validFantasyBody.endDate),
+        debitSchedule: 'Match Day',
+        nextDebitDate: new Date(validFantasyBody.startDate),
+        teamId: 42,
+        teamName: 'Arsenal',
+        nextFixtureId: null,
+        nextFixtureDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (mockPrisma.plan.create as jest.Mock).mockResolvedValue(mockCreatedPlan);
 
       const res = await request
         .post(API_PLANS)
         .set('Authorization', `Bearer ${validToken}`)
         .send(validFantasyBody);
 
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-      expect(res.body.message).toContain('No upcoming fixtures found for');
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('id', 'plan-uuid-pending');
+      expect(res.body.data.nextFixtureId).toBeNull();
+      expect(res.body.data.nextFixtureDate).toBeNull();
+      expect(res.body.message).toContain(
+        'Your savings will start when match schedules are available',
+      );
     });
 
     it('should create a fantasy-savings plan successfully and return 201', async () => {
