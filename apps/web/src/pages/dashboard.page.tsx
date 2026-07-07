@@ -107,7 +107,7 @@ export default function Dashboard() {
       });
 
       return {
-        name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        name: `${dateLabel} • ${timeLabel} • ${tx.id}`,
         dateLabel: `${dateLabel} • ${timeLabel}`,
         Savings: cumulative,
         txAmount: tx.amount,
@@ -121,7 +121,7 @@ export default function Dashboard() {
     startPointDate.setDate(firstTxDate.getDate() - 1);
 
     const startPoint = {
-      name: startPointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      name: `Initial Balance • Start • system`,
       dateLabel: 'Initial Balance',
       Savings: 0,
       txAmount: 0,
@@ -307,6 +307,15 @@ export default function Dashboard() {
                   />
                   <XAxis
                     dataKey="name"
+                    tickFormatter={(val) => {
+                      if (!val) return '';
+                      if (val.startsWith('Initial Balance')) return 'Start';
+                      const parts = val.split(' • ');
+                      if (parts.length > 0) {
+                        return parts[0].split(',')[0];
+                      }
+                      return val;
+                    }}
                     stroke="#94a3b8"
                     fontSize={11}
                     tickLine={false}
@@ -505,20 +514,14 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (data.txType === 'system') {
       return (
         <div className="rounded-2xl border border-border bg-card p-3 shadow-card text-xs font-semibold text-foreground">
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-            {data.dateLabel}
-          </p>
-          <p className="mt-1 text-foreground font-black text-sm">Initial Balance: ₦0</p>
+          <p className="text-foreground font-black text-sm">Initial Balance: ₦0</p>
         </div>
       );
     }
     return (
       <div className="rounded-2xl border border-border bg-card p-4 shadow-card text-xs font-semibold text-foreground space-y-1.5 min-w-[200px]">
-        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider border-b border-border/40 pb-1.5">
-          {data.dateLabel}
-        </p>
         <div className="flex justify-between items-center gap-4">
-          <span className="text-muted-foreground">Transaction:</span>
+          <span className="text-muted-foreground">Amount:</span>
           <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
             +
             {new Intl.NumberFormat('en-NG', {
@@ -532,22 +535,6 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
           <span className="text-muted-foreground">Goal Plan:</span>
           <span className="font-extrabold text-foreground truncate max-w-[120px]">
             {data.txTitle}
-          </span>
-        </div>
-        <div className="flex justify-between items-center gap-4">
-          <span className="text-muted-foreground">Type:</span>
-          <span className="font-extrabold bg-primary/10 text-primary dark:bg-indigo-400/20 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[9px] capitalize">
-            {data.txType}
-          </span>
-        </div>
-        <div className="flex justify-between items-center gap-4 pt-1.5 border-t border-border/40 font-bold">
-          <span className="text-foreground">Total Balance:</span>
-          <span className="text-foreground font-black">
-            {new Intl.NumberFormat('en-NG', {
-              style: 'currency',
-              currency: 'NGN',
-              maximumFractionDigits: 0,
-            }).format(data.Savings)}
           </span>
         </div>
       </div>
