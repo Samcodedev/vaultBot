@@ -274,6 +274,45 @@ export const getPlanById = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
+export const deletePlan = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const id = req.params.id as string;
+
+    if (!userId) {
+      return res.status(UNAUTHORIZED.STATUS_CODE).json({
+        success: false,
+        message: UNAUTHORIZED_ACCESS,
+      });
+    }
+
+    const plan = await prisma.plan.findFirst({
+      where: { id, userId },
+    });
+
+    if (!plan) {
+      return res.status(NOT_FOUND.STATUS_CODE).json({
+        success: false,
+        message: 'Savings plan not found or does not belong to you.',
+      });
+    }
+
+    // Delete related transactions first to avoid FK constraint errors
+    await prisma.transaction.deleteMany({ where: { planId: id } });
+    await prisma.plan.delete({ where: { id } });
+
+    return res.status(200).json({
+      success: true,
+      message: `Plan "${plan.name}" and its transactions have been deleted.`,
+    });
+  } catch (error) {
+    logger.error('Error in deletePlan:', error);
+    return res
+      .status(INTERNAL_SERVER_ERROR.STATUS_CODE)
+      .json({ success: false, error: INTERNAL_SERVER_ERROR.ERROR });
+  }
+};
+
 export const updatePlan = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;

@@ -22,7 +22,7 @@ export async function createVirtualAccount({
 }: CreateVirtualAccountDto): Promise<NombaVirtualAccountResponse> {
   const response = await nombaService.request<NombaVirtualAccountResponse>({
     method: 'POST',
-    url: '/v1/accounts/virtual',
+    url: `/v1/accounts/virtual/${process.env.NOMBA_SUB_ACCOUNT_ID}`,
     data: {
       accountRef: userId,
       accountName: fullName,

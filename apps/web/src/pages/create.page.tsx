@@ -141,7 +141,7 @@ export default function CreatePlan() {
 
       const newPlan = await planApi.createPlan(payload, token);
       toast.success(`Savings plan "${form.title}" created successfully!`);
-      navigate(`/dashboard/plans/${newPlan.id}/setup-mandate`);
+      navigate(`/dashboard/plans/${newPlan.id}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create savings plan';
       toast.error(errorMessage);
