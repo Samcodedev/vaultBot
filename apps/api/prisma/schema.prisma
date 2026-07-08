@@ -15,8 +15,8 @@ model User {
   lastName      String?
   password      String
   phoneNumber   String?
-  accountNumber   String   @unique
-  accountId       String   @unique
+  accountNumber   String?
+  accountId       String?
   bankAccountName String?
   bankName        String?
   createdAt       DateTime @default(now())

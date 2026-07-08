@@ -104,6 +104,27 @@ export default function PlanDetailsPage() {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
   const [copiedPlanId, setCopiedPlanId] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncTransactions = async () => {
+    if (!token) return;
+    try {
+      setIsSyncing(true);
+      const res = await nombaApi.syncTransactions(token);
+      if (res.credited > 0) {
+        toast.success(`✅ ${res.message}`);
+        await fetchPlanDetails(false);
+      } else {
+        toast.info(res.message || 'All transactions are already up to date.');
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Failed to sync. Please try again.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleCopyText = (text: string, type: 'account' | 'plan') => {
     navigator.clipboard.writeText(text);
     if (type === 'account') {
@@ -924,6 +945,26 @@ export default function PlanDetailsPage() {
                       </button>
                     </div>
                   </div>
+                  
+                  {/* Verify Payment Button */}
+                  <button
+                    type="button"
+                    onClick={handleSyncTransactions}
+                    disabled={isSyncing}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold hover:bg-primary/10 hover:border-primary/50 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        Syncing payments…
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={13} />
+                        Verify Payment
+                      </>
+                    )}
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">

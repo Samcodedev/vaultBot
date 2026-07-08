@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
@@ -13,7 +14,8 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MOCK_NOTIFICATIONS } from '@/data/dashboard.data';
+import { notificationsApi } from '@/lib/api';
+import type { AppNotification } from '@/lib/api';
 import ThemeToggle from './ThemeToggle';
 import NotificationsPanel from './NotificationsPanel';
 import ProfileDropdown from './ProfileDropdown';
@@ -23,7 +25,7 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -35,17 +37,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   });
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  // Local read-state overlay so "mark all read" works without a backend call
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  const { data: rawNotifications = [], isLoading: notifLoading } = useQuery<AppNotification[]>({
+    queryKey: ['notifications', token],
+    queryFn: () => notificationsApi.getNotifications(token!),
+    enabled: !!token,
+    refetchInterval: 60_000, // refresh every 60 seconds
+    staleTime: 30_000,
+  });
+
+  const notifications = rawNotifications.map((n) => ({
+    ...n,
+    unread: n.unread && !readIds.has(n.id),
+  }));
+
+
 
   const navigationItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -55,13 +63,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Profile', path: '/dashboard/profile', icon: UserIcon },
   ];
 
+  // Sync theme class to <html>
+  React.useEffect(() => {
+    const root = window.document.documentElement;
+    theme === 'dark' ? root.classList.add('dark') : root.classList.remove('dark');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    setReadIds(new Set(rawNotifications.map((n) => n.id)));
   };
 
   const unreadCount = notifications.filter((n) => n.unread).length;
@@ -192,6 +207,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <NotificationsPanel
               notifications={notifications}
+              isLoading={notifLoading}
               unreadCount={unreadCount}
               isOpen={showNotifications}
               onToggle={() => {

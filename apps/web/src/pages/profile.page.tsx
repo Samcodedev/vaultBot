@@ -12,12 +12,32 @@ import {
   ShieldCheck,
   AlertTriangle,
   Fingerprint,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, token, refreshUser } = useAuth();
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncTransactions = async () => {
+    if (!token) return;
+    try {
+      setIsSyncing(true);
+      const res = await nombaApi.syncTransactions(token);
+      if (res.credited > 0) {
+        toast.success(`✅ ${res.message}`);
+      } else {
+        toast.info(res.message || 'All transactions are already up to date.');
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || 'Failed to sync. Please try again.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -271,6 +291,25 @@ export default function ProfilePage() {
                           )}
                         </button>
                       </div>
+
+                      {/* Verify / Sync Payments Button */}
+                      <button
+                        onClick={handleSyncTransactions}
+                        disabled={isSyncing}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 bg-primary/5 text-primary text-sm font-bold hover:bg-primary/10 hover:border-primary/50 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        {isSyncing ? (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />
+                            Syncing payments…
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw size={15} />
+                            Verify Payments
+                          </>
+                        )}
+                      </button>
                     </div>
                   ) : (
                     <div className="space-y-4">

@@ -254,6 +254,24 @@ export const nombaApi = {
 
     return data.data;
   },
+
+  syncTransactions: async (token: string): Promise<{ credited: number; details: { amount: number; plan: string; ref: string }[]; message: string }> => {
+    const res = await fetch(`${API_BASE_URL}/nomba/sync-transactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to sync transactions');
+    }
+
+    return data;
+  },
 };
 
 export const transactionApi = {
@@ -315,3 +333,36 @@ export const transactionApi = {
     return data.data;
   },
 };
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  desc: string;
+  time: string;
+  unread: boolean;
+  type: string;
+  amount: number;
+  planName: string;
+  createdAt: string;
+}
+
+export const notificationsApi = {
+  getNotifications: async (token: string): Promise<AppNotification[]> => {
+    const res = await fetch(`${API_BASE_URL}/notifications`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to fetch notifications');
+    }
+
+    return data.data;
+  },
+};
+
