@@ -255,7 +255,13 @@ export const nombaApi = {
     return data.data;
   },
 
-  syncTransactions: async (token: string): Promise<{ credited: number; details: { amount: number; plan: string; ref: string }[]; message: string }> => {
+  syncTransactions: async (
+    token: string,
+  ): Promise<{
+    credited: number;
+    details: { amount: number; plan: string; ref: string }[];
+    message: string;
+  }> => {
     const res = await fetch(`${API_BASE_URL}/nomba/sync-transactions`, {
       method: 'POST',
       headers: {
@@ -365,4 +371,3 @@ export const notificationsApi = {
     return data.data;
   },
 };
-

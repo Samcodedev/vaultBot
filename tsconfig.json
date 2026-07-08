@@ -19,6 +19,7 @@
     "apps/**/*.tsx",
     "apps/**/*.js",
     "apps/**/*.mjs",
+    "prisma.config.ts",
     "eslint.config.mjs"
   ],
   "exclude": ["node_modules", "dist"]

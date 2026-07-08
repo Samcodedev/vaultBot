@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 
+import axios from 'axios';
 import type { Request, Response } from 'express';
 
 import prisma from '../config/db.js';
@@ -17,6 +18,128 @@ import { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND, logger } from '../utils/
 const UNAUTHORIZED_ACCESS = 'Unauthorized access';
 const SAVINGS_PLAN_NOT_FOUND = 'Savings plan not found or does not belong to this user';
 const USER_NOT_FOUND = 'User not found';
+const SUCCESSFUL_NOMBA_STATUSES = new Set(['SUCCESS', 'SUCCESSFUL', 'COMPLETED', 'PAID']);
+
+interface NombaTransactionRecord {
+  id?: string | number;
+  transactionId?: string | number;
+  paymentReference?: string | number;
+  reference?: string | number;
+  orderReference?: string | number;
+  merchantTxRef?: string | number;
+  merchantReference?: string | number;
+  sessionId?: string | number;
+  amount?: string | number;
+  amountPaid?: string | number;
+  narration?: string | number;
+  description?: string | number;
+  status?: string;
+  transactionStatus?: string;
+  type?: string;
+  transactionType?: string;
+  customerBillerId?: string | number;
+  accountNumber?: string | number;
+  virtualAccountNumber?: string | number;
+  bankAccountNumber?: string | number;
+  customerAccountNumber?: string | number;
+  destinationAccountNumber?: string | number;
+  beneficiaryAccountNumber?: string | number;
+  accountId?: string | number;
+  accountRef?: string | number;
+  accountHolderId?: string | number;
+  destinationAccountId?: string | number;
+  meta?: {
+    accountId?: string | number;
+    parentAccountId?: string | number;
+    transactionId?: string | number;
+    merchantTxRef?: string | number;
+    rrn?: string | number;
+    transactionAmount?: string | number;
+    billerId?: string | number;
+    mCollectionsId?: string | number;
+  };
+}
+
+interface NombaTransactionHistoryResponse {
+  data?: { results?: NombaTransactionRecord[]; transactions?: NombaTransactionRecord[] };
+  results?: NombaTransactionRecord[];
+  transactions?: NombaTransactionRecord[];
+}
+
+const toReference = (value?: string | number) => {
+  if (typeof value === 'number') return String(value);
+  return value?.trim() || undefined;
+};
+
+const parseNombaAmount = (value?: string | number) => {
+  const normalized = String(value || '').replace(/,/g, '');
+  const amount = Number.parseFloat(normalized);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const getTransactionReference = (tx: NombaTransactionRecord) =>
+  toReference(tx.id) ||
+  toReference(tx.transactionId) ||
+  toReference(tx.paymentReference) ||
+  toReference(tx.reference) ||
+  toReference(tx.orderReference) ||
+  toReference(tx.merchantTxRef) ||
+  toReference(tx.merchantReference) ||
+  toReference(tx.sessionId) ||
+  toReference(tx.meta?.transactionId) ||
+  toReference(tx.meta?.rrn) ||
+  toReference(tx.meta?.merchantTxRef);
+
+const getTransactionNarration = (tx: NombaTransactionRecord) =>
+  toReference(tx.narration) ||
+  toReference(tx.description) ||
+  toReference(tx.orderReference) ||
+  toReference(tx.merchantTxRef) ||
+  toReference(tx.merchantReference) ||
+  toReference(tx.meta?.merchantTxRef) ||
+  toReference(tx.meta?.rrn) ||
+  '';
+
+const nombaAccountMatches = (
+  tx: NombaTransactionRecord,
+  userAccount?: string | null,
+  userAccountId?: string | null,
+) => {
+  const accountNumbers = [
+    tx.customerBillerId,
+    tx.accountNumber,
+    tx.virtualAccountNumber,
+    tx.bankAccountNumber,
+    tx.customerAccountNumber,
+    tx.destinationAccountNumber,
+    tx.beneficiaryAccountNumber,
+  ].map(toReference);
+  const accountIds = [
+    tx.accountId,
+    tx.accountRef,
+    tx.accountHolderId,
+    tx.destinationAccountId,
+    tx.meta?.accountId,
+    tx.meta?.parentAccountId,
+  ].map(toReference);
+
+  return (
+    (!!userAccount && accountNumbers.includes(userAccount)) ||
+    (!!userAccountId && accountIds.includes(userAccountId))
+  );
+};
+
+const isSuccessfulNombaCredit = (tx: NombaTransactionRecord) => {
+  const status = (tx.status || tx.transactionStatus || '').toUpperCase();
+  const type = (tx.type || tx.transactionType || '').toUpperCase();
+
+  const isDebit = type.includes('DEBIT') || type.includes('WITHDRAW');
+
+  return (!status || SUCCESSFUL_NOMBA_STATUSES.has(status)) && !isDebit;
+};
+
+const extractTransactions = (response: NombaTransactionHistoryResponse) =>
+  response.data?.results || response.data?.transactions || response.results || response.transactions || [];
 
 export const createNombaAccount = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -458,26 +581,33 @@ export const handleNombaWebhook = async (req: Request, res: Response) => {
       logger.info('Nomba webhook: signature verified OK.');
     }
 
-
     const event = req.body;
     logger.info(`Received Nomba webhook payload: ${JSON.stringify(event, null, 2)}`);
 
+    const eventData = event.data || event || {};
+    const orderData = eventData.order || event.order || {};
+    const txDetails = eventData.transactionDetails || event.transactionDetails || {};
     const isPaymentSuccess =
       event.event_type === 'payment_success' || event.eventType === 'payment_success';
     const isDirectData =
       event.accountNumber ||
       event.virtualAccountNumber ||
       event.bankAccountNumber ||
-      event.customerAccountNumber;
+      event.customerAccountNumber ||
+      eventData.accountNumber ||
+      eventData.virtualAccountNumber ||
+      eventData.bankAccountNumber ||
+      eventData.customerAccountNumber ||
+      orderData.accountNumber ||
+      txDetails.accountNumber ||
+      eventData.accountId ||
+      eventData.accountRef ||
+      eventData.accountHolderId;
 
     if (!isPaymentSuccess && !isDirectData) {
       logger.info(`Ignored Nomba webhook event type: ${event.event_type || event.eventType}`);
       return res.status(200).json({ success: true, message: 'Event ignored' });
     }
-
-    const eventData = event.data || event || {};
-    const orderData = eventData.order || event.order || {};
-    const txDetails = eventData.transactionDetails || event.transactionDetails || {};
 
     const accountNumber =
       eventData.accountNumber ||
@@ -523,7 +653,7 @@ export const handleNombaWebhook = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, message: 'Missing accountNumber or accountId' });
     }
-// a8768942-f5cf-43f7-94b9-1af529d2e74e
+    // a8768942-f5cf-43f7-94b9-1af529d2e74e
     if (amount <= 0) {
       logger.warn(`Nomba webhook: Invalid amount ${amount}`);
       return res.status(400).json({ success: false, message: 'Invalid transaction amount' });
@@ -544,7 +674,9 @@ export const handleNombaWebhook = async (req: Request, res: Response) => {
         where: { id: transactionId },
       });
       if (existingTx) {
-        logger.info(`Nomba webhook: Transaction ${transactionId} already processed. Skipping duplicate execution.`);
+        logger.info(
+          `Nomba webhook: Transaction ${transactionId} already processed. Skipping duplicate execution.`,
+        );
         return res.status(200).json({ success: true, message: 'Already processed' });
       }
     }
@@ -671,7 +803,6 @@ export const handleNombaWebhook = async (req: Request, res: Response) => {
   }
 };
 
-
 export const syncTransactions = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -694,43 +825,68 @@ export const syncTransactions = async (req: AuthenticatedRequest, res: Response)
       });
     }
 
-    let nombaTransactions: Array<{
-      id?: string;
-      amount?: number | string;
-      narration?: string;
-      status?: string;
-      type?: string;
-      customerBillerId?: string;
-      orderReference?: string;
-      merchantTxRef?: string;
-      timeCreated?: string;
-    }> = [];
+    let nombaTransactions: NombaTransactionRecord[] = [];
 
     try {
-      const response = await nombaService.request({
-        method: 'GET',
-        url: `/v1/transactions/accounts`,
-        params: { limit: 50 },
-      });
-      const respData = response.data as {
-        data?: { results?: typeof nombaTransactions };
-      };
-      nombaTransactions = respData?.data?.results || [];
+      const transactionHistoryPaths = ['/v1/transactions/accounts', '/v1/transactions/bank'];
+      const responses = await Promise.allSettled(
+        transactionHistoryPaths.map((url) =>
+          nombaService.request<NombaTransactionHistoryResponse>({
+            method: 'GET',
+            url,
+            params: { limit: 50 },
+          }),
+        ),
+      );
+
+      nombaTransactions = responses.flatMap((response) =>
+        response.status === 'fulfilled' ? extractTransactions(response.value.data) : [],
+      );
+
+      if (nombaTransactions.length === 0) {
+        const rejectedResponse = responses.find((response) => response.status === 'rejected');
+        if (rejectedResponse?.status === 'rejected') throw rejectedResponse.reason;
+      }
     } catch (fetchErr: unknown) {
-      const e = fetchErr as Error;
-      logger.error('syncTransactions: failed to fetch from Nomba API:', e.message);
+      let message = 'Could not reach Nomba API. Try again in a moment.';
+
+      if (axios.isAxiosError(fetchErr)) {
+        const status = fetchErr.response?.status;
+        const responseData = fetchErr.response?.data as
+          | { description?: string; message?: string }
+          | string
+          | undefined;
+        const nombaMessage =
+          typeof responseData === 'string'
+            ? responseData
+            : responseData?.description || responseData?.message;
+
+        logger.error(
+          `syncTransactions: Nomba API failed (${status || 'no status'}): ${
+            nombaMessage || fetchErr.message
+          }`,
+        );
+
+        if (status === 401 || status === 403) {
+          message =
+            'Nomba rejected the transaction-history request. Confirm NOMBA_BASE_URL matches your credentials and NOMBA_ACCOUNT_ID is the parent account ID with transaction access.';
+        } else if (status === 404) {
+          message = 'Nomba transaction-history endpoint was not found for this environment.';
+        }
+      } else {
+        const e = fetchErr as Error;
+        logger.error('syncTransactions: failed to fetch from Nomba API:', e.message);
+      }
+
       return res.status(502).json({
         success: false,
-        message: 'Could not reach Nomba API. Try again in a moment.',
+        message,
       });
     }
 
-    const userAccountNumber = user.accountNumber;
-    const userTransactions = nombaTransactions.filter((tx) => {
-      const isSuccess = tx.status === 'SUCCESS' || tx.status === 'SUCCESSFUL';
-      const isMatchingAccount = tx.customerBillerId === userAccountNumber;
-      return isSuccess && isMatchingAccount;
-    });
+    const userTransactions = nombaTransactions.filter(
+      (tx) => isSuccessfulNombaCredit(tx) && nombaAccountMatches(tx, user.accountNumber, user.accountId),
+    );
 
     if (userTransactions.length === 0) {
       return res.status(200).json({
@@ -759,14 +915,14 @@ export const syncTransactions = async (req: AuthenticatedRequest, res: Response)
     const creditedDetails: { amount: number; plan: string; ref: string }[] = [];
 
     for (const tx of userTransactions) {
-      const ref = tx.id || '';
-      const amount = tx.amount ? parseFloat(String(tx.amount)) : 0;
+      const ref = getTransactionReference(tx) || '';
+      const amount = parseNombaAmount(tx.amount || tx.amountPaid || tx.meta?.transactionAmount);
 
       if (amount <= 0) continue;
       if (ref && existingRefSet.has(ref)) continue; // already processed
 
       // Match to a plan via narration/description/orderReference or pick most recently updated
-      const narration = tx.narration || tx.orderReference || tx.merchantTxRef || '';
+      const narration = getTransactionNarration(tx);
       let targetPlan = plans[0]; // default: most recently updated
 
       const uuidRegex = /[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/i;
@@ -776,9 +932,7 @@ export const syncTransactions = async (req: AuthenticatedRequest, res: Response)
         const found = plans.find((p) => norm(p.id) === norm(matched[0]));
         if (found) targetPlan = found;
       } else {
-        const byName = plans.find((p) =>
-          narration.toLowerCase().includes(p.name.toLowerCase()),
-        );
+        const byName = plans.find((p) => narration.toLowerCase().includes(p.name.toLowerCase()));
         if (byName) targetPlan = byName;
       }
 
@@ -790,6 +944,7 @@ export const syncTransactions = async (req: AuthenticatedRequest, res: Response)
         }),
         prisma.transaction.create({
           data: {
+            id: ref || undefined,
             planId: targetPlan.id,
             userId,
             amount,

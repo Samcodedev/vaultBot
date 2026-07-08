@@ -945,7 +945,7 @@ export default function PlanDetailsPage() {
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Verify Payment Button */}
                   <button
                     type="button"

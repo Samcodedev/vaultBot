@@ -33,7 +33,7 @@ export default function Landing() {
           </Link>
         </div>
       </nav>
- 
+
       {/* Hero */}
       <section className="px-6 py-20 lg:px-12 lg:py-32">
         <div className="mx-auto max-w-4xl text-center">
@@ -71,7 +71,7 @@ export default function Landing() {
           </motion.div>
         </div>
       </section>
- 
+
       {/* Features */}
       <section className="px-6 py-16 lg:px-12 bg-gray-50">
         <div className="mx-auto max-w-5xl">
@@ -98,7 +98,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
- 
+
       {/* CTA Section */}
       <section className="px-6 py-16 lg:px-12 bg-gradient-to-r from-blue-600 to-indigo-600">
         <div className="mx-auto max-w-2xl text-center">
@@ -113,7 +113,7 @@ export default function Landing() {
           </Link>
         </div>
       </section>
- 
+
       {/* Footer */}
       <footer className="px-6 py-8 text-center text-sm text-gray-600 border-t border-gray-200">
         © {new Date().getFullYear()} VaultBot. All rights reserved.

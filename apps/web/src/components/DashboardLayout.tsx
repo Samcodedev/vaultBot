@@ -53,8 +53,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     unread: n.unread && !readIds.has(n.id),
   }));
 
-
-
   const navigationItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Savings Plans', path: '/dashboard/plans', icon: PiggyBank },
@@ -66,7 +64,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Sync theme class to <html>
   React.useEffect(() => {
     const root = window.document.documentElement;
-    theme === 'dark' ? root.classList.add('dark') : root.classList.remove('dark');
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
     localStorage.setItem('theme', theme);
   }, [theme]);
 

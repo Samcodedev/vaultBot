@@ -36,7 +36,11 @@ export const getNotifications = async (req: AuthenticatedRequest, res: Response)
     });
 
     const amountFmt = (n: number) =>
-      new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(n);
+      new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN',
+        maximumFractionDigits: 0,
+      }).format(n);
 
     const notifications = transactions.map((tx) => {
       const isAutoSave = tx.type === 'auto-save';

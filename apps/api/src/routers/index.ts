@@ -15,4 +15,3 @@ router.use('/transactions', transactionRouter);
 router.use('/notifications', notificationRouter);
 
 export default router;
-

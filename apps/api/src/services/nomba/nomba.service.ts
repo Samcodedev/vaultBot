@@ -9,11 +9,14 @@ class NombaService {
 
   constructor() {
     this.client = axios.create({
-      baseURL: process.env.NOMBA_BASE_URL || 'https://api.nomba.com',
       headers: {
         'Content-Type': 'application/json',
       },
     });
+  }
+
+  private getBaseUrl(): string {
+    return (process.env.NOMBA_BASE_URL || 'https://api.nomba.com').replace(/\/+$/, '');
   }
 
   private async getAccessToken(): Promise<string> {
@@ -27,7 +30,7 @@ class NombaService {
       return this.accessToken;
     }
 
-    const baseUrl = process.env.NOMBA_BASE_URL || 'https://api.nomba.com';
+    const baseUrl = this.getBaseUrl();
     const clientId = process.env.NOMBA_CLIENT_ID;
     const clientSecret = process.env.NOMBA_CLIENT_SECRET;
     const accountId = process.env.NOMBA_ACCOUNT_ID;
@@ -89,6 +92,7 @@ class NombaService {
 
     return this.client.request({
       ...config,
+      baseURL: this.getBaseUrl(),
       headers,
     });
   }

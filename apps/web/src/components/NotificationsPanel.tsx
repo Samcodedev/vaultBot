@@ -125,7 +125,9 @@ export default function NotificationsPanel({
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs font-bold text-foreground leading-snug">{n.title}</p>
+                            <p className="text-xs font-bold text-foreground leading-snug">
+                              {n.title}
+                            </p>
                             <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
                               {n.time}
                             </span>
