@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Shield, Loader2 } from 'lucide-react';
@@ -11,15 +11,19 @@ import type { LoginUserInput, AuthResponse } from '@/types';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) navigate('/dashboard', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const loginMutation = useMutation({
     mutationFn: (credentials: LoginUserInput) => authApi.login(credentials),
     onSuccess: (data: AuthResponse) => {
       login(data.token, data.user);
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');
     },
     onError: (err: unknown) => {
       const error = err as Error;

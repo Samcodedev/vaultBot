@@ -45,8 +45,6 @@ export const registerUser = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         phoneNumber: phoneNumber ?? null,
-        accountNumber: '',
-        accountId: '',
       },
       select: {
         id: true,

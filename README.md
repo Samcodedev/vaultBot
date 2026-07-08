@@ -1,6 +1,20 @@
 # 🛡️ VaultBot: Gamifying and Automating Wealth-Building
 
+> 🚀 **Live App:** [https://vaultbot-f1d9.onrender.com](https://vaultbot-f1d9.onrender.com)
+
 > **Pitch Context:** Built for the Hackathon to address personal finance consistency. VaultBot bridges the gap between sports passion and saving habits, transforming how young adults interact with their wealth.
+
+## 🔐 Demo Login Credentials
+
+Use these credentials to log in and explore the app:
+
+| Field            | Value            |
+| ---------------- | ---------------- |
+| **First Name**   | John             |
+| **Last Name**    | Doe              |
+| **Email**        | John@example.com |
+| **Password**     | Example.1234     |
+| **Phone Number** | 08123456789      |
 
 ---
 

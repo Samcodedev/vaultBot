@@ -21,7 +21,7 @@ app.get('/health', async (req, res) => {
     logger.error(`Health check failed: ${message}`);
     res.status(500).json({
       status: 'ERROR',
-      error: message,
+      error: 'Health check failed',
     });
   }
 });

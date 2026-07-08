@@ -1,16 +1,10 @@
-import { Bell } from 'lucide-react';
+import { Bell, CheckCheck, Zap, ArrowDownCircle, Inbox, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface Notification {
-  id: number;
-  title: string;
-  desc: string;
-  time: string;
-  unread: boolean;
-}
+import type { AppNotification } from '@/lib/api';
 
 interface NotificationsPanelProps {
-  notifications: Notification[];
+  notifications: AppNotification[];
+  isLoading: boolean;
   unreadCount: number;
   isOpen: boolean;
   onToggle: () => void;
@@ -18,8 +12,24 @@ interface NotificationsPanelProps {
   onMarkAllRead: () => void;
 }
 
+function NotificationIcon({ type }: { type: string }) {
+  if (type === 'auto-save') {
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
+        <Zap size={14} className="text-violet-600 dark:text-violet-400" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+      <ArrowDownCircle size={14} className="text-emerald-600 dark:text-emerald-400" />
+    </div>
+  );
+}
+
 export default function NotificationsPanel({
   notifications,
+  isLoading,
   unreadCount,
   isOpen,
   onToggle,
@@ -28,59 +38,122 @@ export default function NotificationsPanel({
 }: NotificationsPanelProps) {
   return (
     <div className="relative">
+      {/* Bell Button */}
       <button
         onClick={onToggle}
-        className="p-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground cursor-pointer transition-colors relative"
+        className="relative p-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground cursor-pointer transition-all duration-200 hover:scale-105"
         aria-label="Notifications"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 flex h-2 w-2 rounded-full bg-destructive ring-2 ring-card animate-pulse" />
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold ring-2 ring-card"
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </motion.span>
         )}
       </button>
 
       <AnimatePresence>
         {isOpen && (
           <>
+            {/* Backdrop */}
             <div className="fixed inset-0 z-40" onClick={onClose} />
+
+            {/* Panel */}
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute right-0 mt-2.5 w-80 rounded-2xl border border-border bg-card shadow-elevated p-4 z-50"
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="absolute right-0 mt-3 w-[340px] rounded-2xl border border-border bg-card shadow-2xl z-50 overflow-hidden"
             >
-              <div className="flex items-center justify-between border-b border-border pb-2.5 mb-2.5">
-                <h4 className="font-bold text-foreground text-sm">Notifications</h4>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
+                <div className="flex items-center gap-2">
+                  <Bell size={15} className="text-primary" />
+                  <h4 className="font-bold text-foreground text-sm">Notifications</h4>
+                  {unreadCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
                 {unreadCount > 0 && (
                   <button
                     onClick={onMarkAllRead}
-                    className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                    className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 cursor-pointer transition-colors"
                   >
+                    <CheckCheck size={13} />
                     Mark all read
                   </button>
                 )}
               </div>
-              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`p-2.5 rounded-xl text-xs transition-colors hover:bg-muted/50 relative border border-transparent ${
-                      n.unread ? 'bg-primary/5 border-primary/10' : ''
-                    }`}
-                  >
-                    <div className="flex justify-between font-semibold text-foreground mb-0.5">
-                      <span>{n.title}</span>
-                      <span className="text-[10px] text-muted-foreground font-normal">
-                        {n.time}
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground leading-relaxed">{n.desc}</p>
-                    {n.unread && (
-                      <span className="absolute top-3.5 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    )}
+
+              {/* Body */}
+              <div className="max-h-[320px] overflow-y-auto">
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
+                    <Loader2 size={22} className="animate-spin" />
+                    <p className="text-xs">Loading activity…</p>
                   </div>
-                ))}
+                ) : notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <Inbox size={22} />
+                    </div>
+                    <p className="text-sm font-medium">No activity yet</p>
+                    <p className="text-xs text-center px-6">
+                      Your deposits and auto-saves will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {notifications.map((n, i) => (
+                      <motion.div
+                        key={n.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-default ${
+                          n.unread ? 'bg-primary/5' : ''
+                        }`}
+                      >
+                        <NotificationIcon type={n.type} />
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs font-bold text-foreground leading-snug">
+                              {n.title}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                              {n.time}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                            {n.desc}
+                          </p>
+                        </div>
+
+                        {n.unread && (
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Footer */}
+              {notifications.length > 0 && (
+                <div className="px-4 py-2.5 border-t border-border bg-muted/20 text-center">
+                  <p className="text-[11px] text-muted-foreground">
+                    Showing your last {notifications.length} activities
+                  </p>
+                </div>
+              )}
             </motion.div>
           </>
         )}

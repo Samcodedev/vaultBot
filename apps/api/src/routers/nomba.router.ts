@@ -7,6 +7,7 @@ import {
   getPlanMandateDetails,
   triggerDebitMandate,
   handleNombaWebhook,
+  syncTransactions,
 } from '../controllers/nomba.controller.js';
 import { authenticateUser } from '../middlewares/index.js';
 import {
@@ -28,5 +29,6 @@ router.post('/direct-debit/mandate', createDirectDebitMandateValidator, initiate
 router.get('/direct-debit/mandate/status/:planId', checkMandateStatus);
 router.get('/direct-debit/mandate/:planId', getPlanMandateDetails);
 router.post('/direct-debit/debit-mandate/:planId', triggerDebitMandate);
+router.post('/sync-transactions', syncTransactions);
 
 export default router;
