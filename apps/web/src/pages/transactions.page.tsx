@@ -94,28 +94,28 @@ export default function TransactionsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-semibold text-foreground">
+              <table className="w-[700px] overflow-x-scroll text-left text-xs font-semibold text-foreground">
                 <thead>
                   <tr className="text-muted-foreground border-b border-border/60 pb-2">
-                    <th className="py-3 font-bold">Transaction ID</th>
-                    <th className="py-3 font-bold">Goal Plan</th>
-                    <th className="py-3 font-bold">Amount</th>
-                    <th className="py-3 font-bold">Type</th>
-                    <th className="py-3 font-bold">Status</th>
-                    <th className="py-3 font-bold text-right">Date/Time</th>
+                    <th className="py-3 w-40 font-bold">Transaction ID</th>
+                    <th className="py-3 w-40 font-bold">Goal Plan</th>
+                    <th className="py-3 w-40 font-bold">Amount</th>
+                    <th className="py-3 w-40 font-bold">Type</th>
+                    <th className="py-3 w-40 font-bold">Status</th>
+                    <th className="py-3 w-40 font-bold text-right">Date/Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/40">
+                <tbody className="divide-y divide-border/40 overflow-x-scroll">
                   {filtered.map((tx) => (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3 text-muted-foreground font-mono" title={tx.id}>
+                      <td className="py-3 w-40 text-muted-foreground font-mono" title={tx.id}>
                         {tx.id.slice(0, 8)}...{tx.id.slice(-4)}
                       </td>
-                      <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
-                      <td className="py-3 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <td className="py-3 w-40 font-bold text-foreground">{tx.planTitle}</td>
+                      <td className="py-3 w-40 text-emerald-600 dark:text-emerald-400 font-bold">
                         +{formatCurrency(tx.amount)}
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 w-40">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
                             tx.type === 'auto-save'
@@ -126,13 +126,13 @@ export default function TransactionsPage() {
                           {tx.type}
                         </span>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 w-40">
                         <span className="flex items-center gap-1.5">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           {tx.status}
                         </span>
                       </td>
-                      <td className="py-3 text-right text-muted-foreground font-normal">
+                      <td className="py-3 w-40 text-right text-muted-foreground font-normal">
                         {(() => {
                           const d = new Date(tx.date);
                           if (isNaN(d.getTime())) return tx.date;

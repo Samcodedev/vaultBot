@@ -612,24 +612,26 @@ export default function PlanDetailsPage() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-semibold text-foreground">
+            <table className="w-[500px] overflow-x-scroll text-left text-xs font-semibold text-foreground">
               <thead>
                 <tr className="text-muted-foreground border-b border-border/40 pb-2">
-                  <th className="py-2.5 font-bold">Transaction ID</th>
-                  <th className="py-2.5 font-bold">Amount</th>
-                  <th className="py-2.5 font-bold">Type</th>
-                  <th className="py-2.5 font-bold">Status</th>
-                  <th className="py-2.5 font-bold text-right">Date/Time</th>
+                  <th className="py-2.5 w-40 font-bold">Transaction ID</th>
+                  <th className="py-2.5 w-40 font-bold">Amount</th>
+                  <th className="py-2.5 w-40 font-bold">Type</th>
+                  <th className="py-2.5 w-40 font-bold">Status</th>
+                  <th className="py-2.5 w-40 font-bold text-right">Date/Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
                 {planTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-3 text-muted-foreground font-mono">{tx.id}</td>
-                    <td className="py-3 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <td className="py-3 w-4 text-muted-foreground font-mono">
+                      {tx.id.slice(0, 8)}...{tx.id.slice(-4)}
+                    </td>
+                    <td className="py-3 w-4 text-emerald-600 dark:text-emerald-400 font-bold">
                       +{formatCurrency(tx.amount)}
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 w-4">
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
                           tx.type === 'auto-save'
@@ -646,7 +648,7 @@ export default function PlanDetailsPage() {
                         {tx.status}
                       </span>
                     </td>
-                    <td className="py-3 text-right text-muted-foreground font-normal">
+                    <td className="py-3 w-4 text-right text-muted-foreground font-normal">
                       {(() => {
                         const d = new Date(tx.date);
                         if (isNaN(d.getTime())) return tx.date;
