@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Shield, Loader2 } from 'lucide-react';
@@ -16,8 +16,12 @@ export default function Register() {
     phoneNumber: '',
     password: '',
   });
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) navigate('/dashboard', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -27,7 +31,7 @@ export default function Register() {
     onSuccess: (data: AuthResponse) => {
       login(data.token, data.user);
       toast.success('Account created!');
-      navigate('/');
+      navigate('/dashboard');
     },
     onError: (err: unknown) => {
       const error = err as Error & { errors?: { msg: string }[] };

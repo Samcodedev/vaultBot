@@ -101,7 +101,7 @@ export const createNombaAccount = async (req: AuthenticatedRequest, res: Respons
     return res.status(INTERNAL_SERVER_ERROR.STATUS_CODE).json({
       success: false,
       error: INTERNAL_SERVER_ERROR.ERROR,
-      message: err.message || 'An unexpected error occurred while creating Nomba account',
+      message: 'An unexpected error occurred while creating Nomba account',
     });
   }
 };
@@ -207,7 +207,7 @@ export const initiateDirectDebit = async (req: AuthenticatedRequest, res: Respon
     logger.error('Error in initiateDirectDebit controller:', err);
     return res.status(500).json({
       success: false,
-      message: err.message || 'An unexpected error occurred while initiating direct debit mandate',
+      message: 'An unexpected error occurred while initiating direct debit mandate',
     });
   }
 };
@@ -273,7 +273,7 @@ export const checkMandateStatus = async (req: AuthenticatedRequest, res: Respons
     logger.error('Error in checkMandateStatus controller:', err);
     return res.status(500).json({
       success: false,
-      message: err.message || 'An unexpected error occurred while checking mandate status',
+      message: 'An unexpected error occurred while checking mandate status',
     });
   }
 };
@@ -325,7 +325,7 @@ export const getPlanMandateDetails = async (req: AuthenticatedRequest, res: Resp
     logger.error('Error in getPlanMandateDetails controller:', err);
     return res.status(500).json({
       success: false,
-      message: err.message || 'An unexpected error occurred while fetching mandate details',
+      message: 'An unexpected error occurred while fetching mandate details',
     });
   }
 };
@@ -425,7 +425,7 @@ export const triggerDebitMandate = async (req: AuthenticatedRequest, res: Respon
     logger.error('Error in triggerDebitMandate controller:', err);
     return res.status(500).json({
       success: false,
-      message: err.message || 'An unexpected error occurred while processing mandate debit',
+      message: 'An unexpected error occurred while processing mandate debit',
     });
   }
 };
@@ -615,7 +615,7 @@ export const handleNombaWebhook = async (req: Request, res: Response) => {
     logger.error('Error in handleNombaWebhook controller:', err);
     return res.status(500).json({
       success: false,
-      message: err.message || 'An unexpected error occurred while processing webhook payment',
+      message: 'An unexpected error occurred while processing webhook payment',
     });
   }
 };

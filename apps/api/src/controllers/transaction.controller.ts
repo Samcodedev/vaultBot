@@ -73,7 +73,7 @@ export const createTransaction = async (req: AuthenticatedRequest, res: Response
     return res.status(INTERNAL_SERVER_ERROR.STATUS_CODE).json({
       success: false,
       error: INTERNAL_SERVER_ERROR.ERROR,
-      message: err.message || 'An unexpected error occurred while creating transaction',
+      message: 'An unexpected error occurred while creating transaction',
     });
   }
 };
@@ -117,7 +117,7 @@ export const getTransactions = async (req: AuthenticatedRequest, res: Response) 
     return res.status(INTERNAL_SERVER_ERROR.STATUS_CODE).json({
       success: false,
       error: INTERNAL_SERVER_ERROR.ERROR,
-      message: err.message || 'An unexpected error occurred while fetching transactions',
+      message: 'An unexpected error occurred while fetching transactions',
     });
   }
 };
@@ -162,7 +162,7 @@ export const getTransactionsByPlanId = async (req: AuthenticatedRequest, res: Re
     return res.status(INTERNAL_SERVER_ERROR.STATUS_CODE).json({
       success: false,
       error: INTERNAL_SERVER_ERROR.ERROR,
-      message: err.message || 'An unexpected error occurred while fetching plan transactions',
+      message: 'An unexpected error occurred while fetching plan transactions',
     });
   }
 };

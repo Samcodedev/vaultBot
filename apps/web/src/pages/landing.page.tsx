@@ -2,8 +2,12 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Shield } from 'lucide-react';
 import { features } from '../data/page.data.tsx';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Landing() {
+  const { isAuthenticated } = useAuth();
+  const startRoute = isAuthenticated ? '/dashboard' : '/register';
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -15,19 +19,21 @@ export default function Landing() {
           <span className="text-lg font-bold text-gray-900">VaultBot</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link to="/login">
-            <button className="text-gray-700 hover:text-gray-900 font-semibold px-4 py-2.5 rounded-md transition-colors">
-              Log in
-            </button>
-          </Link>
-          <Link to="/register">
+          {!isAuthenticated && (
+            <Link to="/login">
+              <button className="text-gray-700 hover:text-gray-900 font-semibold px-4 py-2.5 rounded-md transition-colors">
+                Log in
+              </button>
+            </Link>
+          )}
+          <Link to={startRoute}>
             <button className="bg-blue-600 py-2.5 px-5 text-white hover:bg-blue-700 rounded-md font-semibold transition-colors">
-              Get Started
+              {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
             </button>
           </Link>
         </div>
       </nav>
-
+ 
       {/* Hero */}
       <section className="px-6 py-20 lg:px-12 lg:py-32">
         <div className="mx-auto max-w-4xl text-center">
@@ -57,15 +63,15 @@ export default function Landing() {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="mt-8 flex items-center justify-center gap-4"
           >
-            <Link to="/register">
+            <Link to={startRoute}>
               <button className="gradient-primary text-primary-foreground px-5 py-3 rounded-md text-lg shadow-elevated">
-                Start Saving Now
+                {isAuthenticated ? 'Go to Dashboard' : 'Start Saving Now'}
               </button>
             </Link>
           </motion.div>
         </div>
       </section>
-
+ 
       {/* Features */}
       <section className="px-6 py-16 lg:px-12 bg-gray-50">
         <div className="mx-auto max-w-5xl">
@@ -92,7 +98,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
+ 
       {/* CTA Section */}
       <section className="px-6 py-16 lg:px-12 bg-gradient-to-r from-blue-600 to-indigo-600">
         <div className="mx-auto max-w-2xl text-center">
@@ -100,14 +106,14 @@ export default function Landing() {
           <p className="text-blue-50 mb-8">
             Join thousands of users building their financial future with SafeMoney.
           </p>
-          <Link to="/register">
+          <Link to={startRoute}>
             <button className="bg-white text-blue-600 hover:bg-blue-50 rounded-md px-8 py-4 text-lg font-semibold transition-colors shadow-md">
-              Get Started Today
+              {isAuthenticated ? 'Go to Dashboard' : 'Get Started Today'}
             </button>
           </Link>
         </div>
       </section>
-
+ 
       {/* Footer */}
       <footer className="px-6 py-8 text-center text-sm text-gray-600 border-t border-gray-200">
         © {new Date().getFullYear()} VaultBot. All rights reserved.
