@@ -7,7 +7,7 @@ import {
   Calendar,
   Clock,
   PiggyBank,
-  Trash2,
+  // Trash2,
   Trophy,
   Activity,
   Percent,
@@ -27,7 +27,7 @@ export default function PlanDetailsPage() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  // const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const fetchPlanDetails = useCallback(
     async (showSkeleton = true) => {
@@ -192,19 +192,19 @@ export default function PlanDetailsPage() {
   };
   // Redirect the /setup-mandate subpage back to plan details (mandate UI is temporarily disabled)
 
-  const handleDeletePlan = async () => {
-    if (!token || !id) return;
-    try {
-      await planApi.deletePlan(id, token);
-      toast.success('Plan deleted successfully.');
-      navigate('/dashboard/plans');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete plan';
-      toast.error(errorMessage);
-    } finally {
-      setIsConfirmingDelete(false);
-    }
-  };
+  // const handleDeletePlan = async () => {
+  //   if (!token || !id) return;
+  //   try {
+  //     await planApi.deletePlan(id, token);
+  //     toast.success('Plan deleted successfully.');
+  //     navigate('/dashboard/plans');
+  //   } catch (err) {
+  //     const errorMessage = err instanceof Error ? err.message : 'Failed to delete plan';
+  //     toast.error(errorMessage);
+  //   } finally {
+  //     setIsConfirmingDelete(false);
+  //   }
+  // };
 
   // Redirect the /setup-mandate subpage back to plan details (mandate UI is temporarily disabled)
   if (isSetupMandateSubpage) {
@@ -244,7 +244,7 @@ export default function PlanDetailsPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* <div className="flex items-center gap-2 self-start sm:self-auto">
             {isConfirmingDelete ? (
               <div className="flex items-center gap-2">
                 <button
@@ -268,7 +268,7 @@ export default function PlanDetailsPage() {
                 <Trash2 size={13} /> Delete Goal
               </button>
             )}
-          </div>
+          </div> */}
         </div>
         {/* Dashboard Grid */}
         <div className="">
