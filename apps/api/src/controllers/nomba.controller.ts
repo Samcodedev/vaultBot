@@ -139,7 +139,11 @@ const isSuccessfulNombaCredit = (tx: NombaTransactionRecord) => {
 };
 
 const extractTransactions = (response: NombaTransactionHistoryResponse) =>
-  response.data?.results || response.data?.transactions || response.results || response.transactions || [];
+  response.data?.results ||
+  response.data?.transactions ||
+  response.results ||
+  response.transactions ||
+  [];
 
 export const createNombaAccount = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -853,9 +857,7 @@ export const syncTransactions = async (req: AuthenticatedRequest, res: Response)
       if (axios.isAxiosError(fetchErr)) {
         const status = fetchErr.response?.status;
         const responseData = fetchErr.response?.data as
-          | { description?: string; message?: string }
-          | string
-          | undefined;
+          { description?: string; message?: string } | string | undefined;
         const nombaMessage =
           typeof responseData === 'string'
             ? responseData
@@ -885,7 +887,8 @@ export const syncTransactions = async (req: AuthenticatedRequest, res: Response)
     }
 
     const userTransactions = nombaTransactions.filter(
-      (tx) => isSuccessfulNombaCredit(tx) && nombaAccountMatches(tx, user.accountNumber, user.accountId),
+      (tx) =>
+        isSuccessfulNombaCredit(tx) && nombaAccountMatches(tx, user.accountNumber, user.accountId),
     );
 
     if (userTransactions.length === 0) {
