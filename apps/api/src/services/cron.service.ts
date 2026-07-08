@@ -29,6 +29,30 @@ async function processVaultPlan(plan: Plan) {
   let debitSuccess = false;
 
   if (plan.autoSaveEnabled && plan.mandateId) {
+    // ── Idempotency check: skip if already debited in this cycle ──────────────
+    const windowStart = plan.nextDebitDate;
+    const windowEnd = calculateNextDebitDate(plan.nextDebitDate, plan.savingType);
+    const alreadyDebited = await prisma.transaction.findFirst({
+      where: {
+        planId: plan.id,
+        type: 'auto-save',
+        status: 'completed',
+        createdAt: { gte: windowStart, lt: windowEnd },
+      },
+    });
+
+    if (alreadyDebited) {
+      logger.info(
+        `[Scheduler] Vault plan ${plan.id} already debited this cycle (tx: ${alreadyDebited.id}). Advancing nextDebitDate only.`,
+      );
+      await prisma.plan.update({
+        where: { id: plan.id },
+        data: { nextDebitDate: windowEnd },
+      });
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     try {
       const debitResponse = await debitMandate(plan.mandateId, plan.amount);
       if (
@@ -122,27 +146,58 @@ async function processFantasyPlan(plan: Plan) {
 
       if (shouldDebit) {
         if (plan.autoSaveEnabled && plan.mandateId) {
-          try {
-            const debitResponse = await debitMandate(plan.mandateId, finalDebitAmount);
-            if (
-              debitResponse.code === '00' ||
-              debitResponse.code === '200' ||
-              debitResponse.data?.status === 'SUCCESS'
-            ) {
-              debitSuccess = true;
-              await prisma.transaction.create({
-                data: {
+          // ── Idempotency check: skip if already debited for this fixture ──────
+          const alreadyDebited = plan.nextFixtureId
+            ? await prisma.transaction.findFirst({
+                where: {
                   planId: plan.id,
-                  userId: plan.userId,
-                  amount: finalDebitAmount,
                   type: 'auto-save',
                   status: 'completed',
+                  createdAt: { gte: plan.nextDebitDate || new Date(0) },
                 },
-              });
-            } else {
-              logger.warn(
-                `[Scheduler] Fantasy debit failed: ${debitResponse.description || 'Unknown error'}`,
-              );
+              })
+            : null;
+
+          if (alreadyDebited) {
+            logger.info(
+              `[Scheduler] Fantasy plan ${plan.id} already debited for fixture ${plan.nextFixtureId} (tx: ${alreadyDebited.id}). Skipping.`,
+            );
+          } else {
+            // ─────────────────────────────────────────────────────────────────
+            try {
+              const debitResponse = await debitMandate(plan.mandateId, finalDebitAmount);
+              if (
+                debitResponse.code === '00' ||
+                debitResponse.code === '200' ||
+                debitResponse.data?.status === 'SUCCESS'
+              ) {
+                debitSuccess = true;
+                await prisma.transaction.create({
+                  data: {
+                    planId: plan.id,
+                    userId: plan.userId,
+                    amount: finalDebitAmount,
+                    type: 'auto-save',
+                    status: 'completed',
+                  },
+                });
+              } else {
+                logger.warn(
+                  `[Scheduler] Fantasy debit failed: ${debitResponse.description || 'Unknown error'}`,
+                );
+                await prisma.transaction.create({
+                  data: {
+                    planId: plan.id,
+                    userId: plan.userId,
+                    amount: finalDebitAmount,
+                    type: 'auto-save',
+                    status: 'failed',
+                  },
+                });
+              }
+            } catch (err: unknown) {
+              const error = err as Error;
+              logger.error(`[Scheduler] Direct Debit payment failed with error:`, error);
               await prisma.transaction.create({
                 data: {
                   planId: plan.id,
@@ -153,18 +208,6 @@ async function processFantasyPlan(plan: Plan) {
                 },
               });
             }
-          } catch (err: unknown) {
-            const error = err as Error;
-            logger.error(`[Scheduler] Direct Debit payment failed with error:`, error);
-            await prisma.transaction.create({
-              data: {
-                planId: plan.id,
-                userId: plan.userId,
-                amount: finalDebitAmount,
-                type: 'auto-save',
-                status: 'failed',
-              },
-            });
           }
         } else {
           logger.info(

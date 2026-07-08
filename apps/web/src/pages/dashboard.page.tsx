@@ -205,8 +205,8 @@ export default function Dashboard() {
       color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     },
     {
-      label: hasAutoSaveData ? 'Total Auto-Saved' : 'Total Target Goal',
-      value: formatCurrency(hasAutoSaveData ? totalAutoSaved : totalTargetAmount),
+      label: hasAutoSaveData ? 'Total Target Goal' : 'Total Auto-Saved',
+      value: formatCurrency(hasAutoSaveData ? totalTargetAmount : totalAutoSaved),
       subtext: hasAutoSaveData
         ? `Avg debit size: ${formatCurrency(avgAutoSaveAmount)}`
         : `Target amount for all plans`,
