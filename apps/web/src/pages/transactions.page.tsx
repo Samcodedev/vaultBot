@@ -105,7 +105,7 @@ export default function TransactionsPage() {
                     <th className="py-3 whitespace-nowrap font-bold text-right">Date/Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/40">
+                <tbody className="divide-y divide-border/40 overflow-x-scroll">
                   {filtered.map((tx) => (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                       <td
