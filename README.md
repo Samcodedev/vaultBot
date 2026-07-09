@@ -22,9 +22,9 @@ Use these credentials to log in and explore the app:
 
 VaultBot integrates with the following third-party APIs to power its core features:
 
-| Service | Purpose | Documentation |
-|---|---|---|
-| **[Nomba](https://nomba.com)** | Virtual account creation, mandate-based direct debit, and payment processing | [Nomba Developer Docs](https://developers.nomba.com) |
+| Service                                                         | Purpose                                                                                  | Documentation                                                      |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **[Nomba](https://nomba.com)**                                  | Virtual account creation, mandate-based direct debit, and payment processing             | [Nomba Developer Docs](https://developers.nomba.com)               |
 | **[API-Football](https://www.api-football.com)** (via RapidAPI) | Fetches Premier League team data and fixture schedules to trigger Fantasy Savings events | [API-Football Docs](https://www.api-football.com/documentation-v3) |
 
 ---
