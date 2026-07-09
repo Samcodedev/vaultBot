@@ -611,27 +611,30 @@ export default function PlanDetailsPage() {
               <Activity size={16} />
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-[500px] overflow-x-scroll text-left text-xs font-semibold text-foreground">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-max min-w-full text-left text-xs font-semibold text-foreground">
               <thead>
-                <tr className="text-muted-foreground border-b border-border/40 pb-2">
-                  <th className="py-2.5 w-40 font-bold">Transaction ID</th>
-                  <th className="py-2.5 w-40 font-bold">Amount</th>
-                  <th className="py-2.5 w-40 font-bold">Type</th>
-                  <th className="py-2.5 w-40 font-bold">Status</th>
-                  <th className="py-2.5 w-40 font-bold text-right">Date/Time</th>
+                <tr className="text-muted-foreground border-b border-border/40">
+                  <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Transaction ID</th>
+                  <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Amount</th>
+                  <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Type</th>
+                  <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Status</th>
+                  <th className="py-2.5 whitespace-nowrap font-bold text-right">Date/Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
                 {planTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-3 w-4 text-muted-foreground font-mono">
+                    <td
+                      className="py-3 pr-6 whitespace-nowrap text-muted-foreground font-mono"
+                      title={tx.id}
+                    >
                       {tx.id.slice(0, 8)}...{tx.id.slice(-4)}
                     </td>
-                    <td className="py-3 w-4 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <td className="py-3 pr-6 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-bold">
                       +{formatCurrency(tx.amount)}
                     </td>
-                    <td className="py-3 w-4">
+                    <td className="py-3 pr-6 whitespace-nowrap">
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
                           tx.type === 'auto-save'
@@ -642,13 +645,13 @@ export default function PlanDetailsPage() {
                         {tx.type}
                       </span>
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 pr-6 whitespace-nowrap">
                       <span className="flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         {tx.status}
                       </span>
                     </td>
-                    <td className="py-3 w-4 text-right text-muted-foreground font-normal">
+                    <td className="py-3 whitespace-nowrap text-right text-muted-foreground font-normal">
                       {(() => {
                         const d = new Date(tx.date);
                         if (isNaN(d.getTime())) return tx.date;

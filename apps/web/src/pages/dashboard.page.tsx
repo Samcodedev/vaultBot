@@ -417,7 +417,7 @@ export default function Dashboard() {
         {/* Middle row: Recent Activity Logs */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Recent Activity Logs */}
-          <div className="lg:col-span-3 rounded-2xl border border-border bg-card p-6 shadow-card flex flex-col justify-between">
+          <div className="lg:col-span-3 rounded-2xl border border-border bg-card p-6 shadow-card flex flex-col justify-between overflow-hidden">
             <div className="flex items-center justify-between mb-4 border-b border-border/60 pb-3">
               <div>
                 <h3 className="font-bold text-foreground text-base">Recent Activities</h3>
@@ -433,15 +433,15 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="flex-1 overflow-x-auto">
-              <table className="w-full text-left text-xs font-semibold text-foreground">
+            <div className="overflow-x-scroll scrollbar-hide -mx-6 px-6">
+              <table className="w-max min-w-full text-left text-xs font-semibold text-foreground">
                 <thead>
-                  <tr className="text-muted-foreground border-b border-border/40 pb-2">
-                    <th className="py-2.5 font-bold">Goal/Plan</th>
-                    <th className="py-2.5 font-bold">Amount</th>
-                    <th className="py-2.5 font-bold">Method</th>
-                    <th className="py-2.5 font-bold">Status</th>
-                    <th className="py-2.5 font-bold text-right">Time</th>
+                  <tr className="text-muted-foreground border-b border-border/40">
+                    <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Goal/Plan</th>
+                    <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Amount</th>
+                    <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Method</th>
+                    <th className="py-2.5 pr-6 whitespace-nowrap font-bold">Status</th>
+                    <th className="py-2.5 whitespace-nowrap font-bold text-right">Time</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -457,11 +457,13 @@ export default function Dashboard() {
                   ) : (
                     transactions.slice(0, 4).map((tx) => (
                       <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 font-bold text-foreground">{tx.planTitle}</td>
-                        <td className="py-3 text-emerald-600 dark:text-emerald-400">
+                        <td className="py-3 pr-6 whitespace-nowrap font-bold text-foreground">
+                          {tx.planTitle}
+                        </td>
+                        <td className="py-3 pr-6 whitespace-nowrap text-emerald-600 dark:text-emerald-400">
                           +{formatCurrency(tx.amount)}
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 pr-6 whitespace-nowrap">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
                               tx.type === 'auto-save'
@@ -472,13 +474,13 @@ export default function Dashboard() {
                             {tx.type}
                           </span>
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 pr-6 whitespace-nowrap">
                           <span className="flex items-center gap-1">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                             {tx.status}
                           </span>
                         </td>
-                        <td className="py-3 text-right text-muted-foreground">
+                        <td className="py-3 whitespace-nowrap text-right text-muted-foreground">
                           {formatTransactionDate(tx.date)}
                         </td>
                       </tr>
