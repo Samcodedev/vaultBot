@@ -18,6 +18,17 @@ Use these credentials to log in and explore the app:
 
 ---
 
+## 🔌 External API Services
+
+VaultBot integrates with the following third-party APIs to power its core features:
+
+| Service | Purpose | Documentation |
+|---|---|---|
+| **[Nomba](https://nomba.com)** | Virtual account creation, mandate-based direct debit, and payment processing | [Nomba Developer Docs](https://developers.nomba.com) |
+| **[API-Football](https://www.api-football.com)** (via RapidAPI) | Fetches Premier League team data and fixture schedules to trigger Fantasy Savings events | [API-Football Docs](https://www.api-football.com/documentation-v3) |
+
+---
+
 ## 🎯 The Problem & Goal
 
 ### The Problem
@@ -93,13 +104,34 @@ npm install
 
 ### 3. Environment Configuration
 
-Create a `.env` file in the `apps/api` directory:
+Create a `.env` file in the `apps/api` directory using the keys listed below. You can use the provided demo credentials for local development or supply your own.
 
 ```env
-PORT=5000
-DATABASE_URL="postgresql://<username>:<password>@localhost:5432/vaultbot?schema=public"
-JWT_SECRET="your-super-secure-jwt-secret-key"
+# Server
+PORT=
+NODE_ENV=
+LOG_LEVEL=
+
+# Database
+DATABASE_URL=
+
+# JWT Configuration
+JWT_SECRET=
+JWT_EXPIRES_IN=
+
+# Football API (via RapidAPI — https://www.api-football.com)
+FOOTBALL_API_KEY=
+
+# Nomba API (https://developers.nomba.com)
+NOMBA_CLIENT_ID=
+NOMBA_CLIENT_SECRET=
+NOMBA_ACCOUNT_ID=
+NOMBA_BASE_URL=
+NOMBA_WEBHOOK_SECRET=
+NOMBA_SUB_ACCOUNT_ID=
 ```
+
+> **Note:** `NOMBA_BASE_URL` should be `https://sandbox.nomba.com` for local/testing and `https://api.nomba.com` for production.
 
 ### 4. Database Initialization
 
