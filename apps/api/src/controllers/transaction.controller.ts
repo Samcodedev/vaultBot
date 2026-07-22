@@ -89,13 +89,63 @@ export const getTransactions = async (req: AuthenticatedRequest, res: Response) 
       });
     }
 
-    const transactions = await prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        plan: true,
-      },
-    });
+    const all = req.query.all === 'true';
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const type = req.query.type as string;
+    const search = req.query.search as string;
+
+    const whereClause: any = { userId };
+    if (type && type !== 'all') {
+      whereClause.type = type;
+    }
+    if (search) {
+      whereClause.plan = {
+        name: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      };
+    }
+
+    let transactions;
+    let pagination;
+
+    if (all) {
+      transactions = await prisma.transaction.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          plan: true,
+        },
+      });
+    } else {
+      const skip = (page - 1) * limit;
+      const take = limit;
+
+      const [txs, totalCount] = await prisma.$transaction([
+        prisma.transaction.findMany({
+          where: whereClause,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            plan: true,
+          },
+          skip,
+          take,
+        }),
+        prisma.transaction.count({
+          where: whereClause,
+        }),
+      ]);
+
+      transactions = txs;
+      pagination = {
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit,
+      };
+    }
 
     const mapped = transactions.map((tx) => ({
       id: tx.id,
@@ -109,7 +159,7 @@ export const getTransactions = async (req: AuthenticatedRequest, res: Response) 
 
     return res.status(200).json({
       success: true,
-      data: mapped,
+      data: all ? { transactions: mapped } : { transactions: mapped, pagination },
     });
   } catch (error: unknown) {
     const err = error as Error;
@@ -134,13 +184,63 @@ export const getTransactionsByPlanId = async (req: AuthenticatedRequest, res: Re
       });
     }
 
-    const transactions = await prisma.transaction.findMany({
-      where: { planId, userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        plan: true,
-      },
-    });
+    const all = req.query.all === 'true';
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const type = req.query.type as string;
+    const search = req.query.search as string;
+
+    const whereClause: any = { planId, userId };
+    if (type && type !== 'all') {
+      whereClause.type = type;
+    }
+    if (search) {
+      whereClause.plan = {
+        name: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      };
+    }
+
+    let transactions;
+    let pagination;
+
+    if (all) {
+      transactions = await prisma.transaction.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          plan: true,
+        },
+      });
+    } else {
+      const skip = (page - 1) * limit;
+      const take = limit;
+
+      const [txs, totalCount] = await prisma.$transaction([
+        prisma.transaction.findMany({
+          where: whereClause,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            plan: true,
+          },
+          skip,
+          take,
+        }),
+        prisma.transaction.count({
+          where: whereClause,
+        }),
+      ]);
+
+      transactions = txs;
+      pagination = {
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit,
+      };
+    }
 
     const mapped = transactions.map((tx) => ({
       id: tx.id,
@@ -154,7 +254,7 @@ export const getTransactionsByPlanId = async (req: AuthenticatedRequest, res: Re
 
     return res.status(200).json({
       success: true,
-      data: mapped,
+      data: all ? { transactions: mapped } : { transactions: mapped, pagination },
     });
   } catch (error: unknown) {
     const err = error as Error;

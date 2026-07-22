@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Zap, ArrowDownCircle, Inbox, Loader2 } from 'lucide-react';
+import { Bell, CheckCheck, MessageSquare, ArrowDownCircle, Inbox, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AppNotification } from '@/lib/api';
 
@@ -16,7 +16,7 @@ function NotificationIcon({ type }: { type: string }) {
   if (type === 'auto-save') {
     return (
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40">
-        <Zap size={14} className="text-violet-600 dark:text-violet-400" />
+        <MessageSquare size={14} className="text-violet-600 dark:text-violet-400" />
       </div>
     );
   }
@@ -59,8 +59,11 @@ export default function NotificationsPanel({
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
-            <div className="fixed inset-0 z-40" onClick={onClose} />
+            {/* Backdrop with mobile blur */}
+            <div
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-md md:bg-transparent md:backdrop-blur-none"
+              onClick={onClose}
+            />
 
             {/* Panel */}
             <motion.div
@@ -68,7 +71,7 @@ export default function NotificationsPanel({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="absolute right-0 mt-3 w-[340px] rounded-2xl border border-border bg-card shadow-2xl z-50 overflow-hidden"
+              className="fixed md:absolute top-16 md:top-auto left-0 md:left-auto md:right-0 mt-0 md:mt-3 w-full md:w-[340px] h-fit md:h-auto flex flex-col rounded-none md:rounded-2xl border-x-0 md:border border-y md:border-border bg-card shadow-2xl z-50 overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
@@ -93,7 +96,7 @@ export default function NotificationsPanel({
               </div>
 
               {/* Body */}
-              <div className="max-h-[320px] overflow-y-auto">
+              <div className="flex-1 md:flex-none md:max-h-[320px] overflow-y-auto">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
                     <Loader2 size={22} className="animate-spin" />
@@ -117,14 +120,14 @@ export default function NotificationsPanel({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.05 }}
-                        className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-default ${
+                        className={`flex items-start gap-4 px-5 py-4 hover:bg-muted/50 transition-colors cursor-default ${
                           n.unread ? 'bg-primary/5' : ''
                         }`}
                       >
                         <NotificationIcon type={n.type} />
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start justify-between gap-3">
                             <p className="text-xs font-bold text-foreground leading-snug">
                               {n.title}
                             </p>
@@ -132,7 +135,7 @@ export default function NotificationsPanel({
                               {n.time}
                             </span>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">
                             {n.desc}
                           </p>
                         </div>

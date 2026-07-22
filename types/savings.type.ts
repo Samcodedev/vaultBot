@@ -75,3 +75,15 @@ export interface DebitMandateResponse {
   amount?: number;
   planTitle?: string;
 }
+
+export interface PaginationMetadata {
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  limit: number;
+}
+
+export interface PaginatedTransactions {
+  transactions: SavingsTransaction[];
+  pagination?: PaginationMetadata;
+}

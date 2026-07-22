@@ -10,6 +10,7 @@ import type {
   MandateStatusResponse,
   MandateDetailsResponse,
   DebitMandateResponse,
+  PaginatedTransactions,
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -299,8 +300,22 @@ export const nombaApi = {
 };
 
 export const transactionApi = {
-  getTransactions: async (token: string): Promise<SavingsTransaction[]> => {
-    const res = await fetch(`${API_BASE_URL}/transactions`, {
+  getTransactions: async (
+    token: string,
+    params?: { page?: number; limit?: number; all?: boolean; type?: string; search?: string },
+  ): Promise<PaginatedTransactions> => {
+    const query = new URLSearchParams();
+    if (params) {
+      if (params.page !== undefined) query.append('page', params.page.toString());
+      if (params.limit !== undefined) query.append('limit', params.limit.toString());
+      if (params.all !== undefined) query.append('all', params.all.toString());
+      if (params.type !== undefined) query.append('type', params.type);
+      if (params.search !== undefined) query.append('search', params.search);
+    }
+    const queryString = query.toString();
+    const url = `${API_BASE_URL}/transactions${queryString ? `?${queryString}` : ''}`;
+
+    const res = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -339,8 +354,23 @@ export const transactionApi = {
     return data.data;
   },
 
-  getPlanTransactions: async (planId: string, token: string): Promise<SavingsTransaction[]> => {
-    const res = await fetch(`${API_BASE_URL}/transactions/plan/${planId}`, {
+  getPlanTransactions: async (
+    planId: string,
+    token: string,
+    params?: { page?: number; limit?: number; all?: boolean; type?: string; search?: string },
+  ): Promise<PaginatedTransactions> => {
+    const query = new URLSearchParams();
+    if (params) {
+      if (params.page !== undefined) query.append('page', params.page.toString());
+      if (params.limit !== undefined) query.append('limit', params.limit.toString());
+      if (params.all !== undefined) query.append('all', params.all.toString());
+      if (params.type !== undefined) query.append('type', params.type);
+      if (params.search !== undefined) query.append('search', params.search);
+    }
+    const queryString = query.toString();
+    const url = `${API_BASE_URL}/transactions/plan/${planId}${queryString ? `?${queryString}` : ''}`;
+
+    const res = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

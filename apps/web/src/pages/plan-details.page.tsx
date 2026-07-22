@@ -10,10 +10,9 @@ import {
   // Trash2,
   Trophy,
   Activity,
-  Percent,
   Loader2,
 } from 'lucide-react';
-import type { SavingsPlan as Plan, SavingsTransaction as Transaction } from '@/types';
+import type { SavingsPlan as Plan, SavingsTransaction as Transaction, PaginationMetadata } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { planApi, transactionApi } from '@/lib/api';
 import { teams } from '../../../../data/team.data';
@@ -27,6 +26,8 @@ export default function PlanDetailsPage() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMetadata | null>(null);
   // const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const fetchPlanDetails = useCallback(
@@ -36,8 +37,14 @@ export default function PlanDetailsPage() {
         if (showSkeleton) setIsLoading(true);
         const data = await planApi.getPlanById(id, token);
         setPlan(data);
-        const txData = await transactionApi.getPlanTransactions(id, token);
-        setTransactions(txData);
+        const txData = await transactionApi.getPlanTransactions(id, token, {
+          page,
+          limit: 10,
+        });
+        setTransactions(txData.transactions);
+        if (txData.pagination) {
+          setPagination(txData.pagination);
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load plan details';
         toast.error(errorMessage);
@@ -45,7 +52,7 @@ export default function PlanDetailsPage() {
         setIsLoading(false);
       }
     },
-    [id, token],
+    [id, token, page],
   );
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -83,9 +90,7 @@ export default function PlanDetailsPage() {
       </DashboardLayout>
     );
   }
-  const planTransactions = transactions.filter(
-    (tx) => tx.planTitle.toLowerCase() === plan.title.toLowerCase(),
-  );
+  const planTransactions = transactions;
   const percentage = Math.min(Math.round((plan.currentBalance / plan.targetAmount) * 100), 100);
   const remainingAmount = Math.max(plan.targetAmount - plan.currentBalance, 0);
   const formatCurrency = (value: number) => {
@@ -289,7 +294,6 @@ export default function PlanDetailsPage() {
                       : 'bg-primary/10 text-primary'
                   }`}
                 >
-                  <Percent size={14} />
                   <span>{percentage}% Saved</span>
                 </div>
               </div>
@@ -683,6 +687,32 @@ export default function PlanDetailsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold text-muted-foreground">
+                Showing page <span className="font-bold text-foreground">{pagination.currentPage}</span> of{' '}
+                <span className="font-bold text-foreground">{pagination.totalPages}</span> ({pagination.totalItems} entries)
+              </p>
+              <div className="flex gap-2">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold border border-border bg-card hover:bg-muted text-foreground transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={page >= pagination.totalPages}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold border border-border bg-card hover:bg-muted text-foreground transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

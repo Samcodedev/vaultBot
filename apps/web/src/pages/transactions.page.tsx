@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { transactionApi } from '@/lib/api';
 
@@ -12,14 +12,39 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'deposit' | 'auto-save'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  const [pagination, setPagination] = useState<{
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    limit: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchTransactions = async () => {
       if (!token) return;
       try {
         setIsLoading(true);
-        const data = await transactionApi.getTransactions(token);
-        setTransactions(data);
+        const data = await transactionApi.getTransactions(token, {
+          page,
+          limit: 10,
+          type: filterType,
+          search: debouncedSearchQuery,
+        });
+        setTransactions(data.transactions);
+        if (data.pagination) {
+          setPagination(data.pagination);
+        }
       } catch (err) {
         console.error('Failed to load transaction history', err);
       } finally {
@@ -27,13 +52,14 @@ export default function TransactionsPage() {
       }
     };
     fetchTransactions();
-  }, [token]);
+  }, [token, page, filterType, debouncedSearchQuery]);
 
-  const filtered = transactions.filter((tx) => {
-    const matchesFilter = filterType === 'all' || tx.type === filterType;
-    const matchesSearch = tx.planTitle.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const handleFilterChange = (type: 'all' | 'deposit' | 'auto-save') => {
+    setFilterType(type);
+    setPage(1);
+  };
+
+  const filtered = transactions;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -69,20 +95,51 @@ export default function TransactionsPage() {
             />
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto overflow-x-auto justify-end">
-            {(['all', 'deposit', 'auto-save'] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer capitalize ${
-                  filterType === type
-                    ? 'gradient-primary text-white border-transparent shadow-sm'
-                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
+          <div className="relative w-full sm:w-auto">
+            <button
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+              className="flex items-center justify-between gap-2 px-4 py-2 w-full sm:w-44 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-all cursor-pointer shadow-sm focus:outline-none focus:border-primary"
+            >
+              <span className="capitalize">
+                {filterType === 'all' ? 'All Logs' : filterType}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-muted-foreground transition-transform duration-200 ${
+                  isDropdownOpen ? 'rotate-180' : ''
                 }`}
-              >
-                {type === 'all' ? 'All Logs' : type}
-              </button>
-            ))}
+              />
+            </button>
+
+            {isDropdownOpen && (
+              <>
+                {/* Backdrop to close dropdown on click outside */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute right-0 mt-1.5 w-full sm:w-44 bg-card border border-border rounded-xl shadow-elevated z-20 py-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                  {(['all', 'deposit', 'auto-save'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        handleFilterChange(type);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`flex w-full text-left px-4 py-2 text-xs font-bold transition-colors cursor-pointer capitalize ${
+                        filterType === type
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {type === 'all' ? 'All Logs' : type}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -114,8 +171,11 @@ export default function TransactionsPage() {
                       >
                         {tx.id.slice(0, 8)}...{tx.id.slice(-4)}
                       </td>
-                      <td className="py-3 pr-6 whitespace-nowrap font-bold text-foreground">
-                        {tx.planTitle}
+                      <td
+                        className="py-3 pr-6 whitespace-nowrap font-bold text-foreground truncate max-w-[150px]"
+                        title={tx.planTitle}
+                      >
+                        {tx.planTitle.length > 20 ? `${tx.planTitle.slice(0, 20)}...` : tx.planTitle}
                       </td>
                       <td className="py-3 pr-6 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-bold">
                         +{formatCurrency(tx.amount)}
@@ -168,6 +228,32 @@ export default function TransactionsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold text-muted-foreground">
+                Showing page <span className="font-bold text-foreground">{pagination.currentPage}</span> of{' '}
+                <span className="font-bold text-foreground">{pagination.totalPages}</span> ({pagination.totalItems} entries)
+              </p>
+              <div className="flex gap-2">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold border border-border bg-card hover:bg-muted text-foreground transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={page >= pagination.totalPages}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold border border-border bg-card hover:bg-muted text-foreground transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>

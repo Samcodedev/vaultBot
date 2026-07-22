@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   PiggyBank,
   History,
-  LogOut,
   Menu,
   X,
   Shield,
   PlusCircle,
-  User as UserIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notificationsApi } from '@/lib/api';
@@ -25,9 +23,8 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -58,7 +55,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Savings Plans', path: '/dashboard/plans', icon: PiggyBank },
     { name: 'Create Plan', path: '/dashboard/create', icon: PlusCircle },
     { name: 'Transactions', path: '/dashboard/transactions', icon: History },
-    { name: 'Profile', path: '/dashboard/profile', icon: UserIcon },
   ];
 
   // Sync theme class to <html>
@@ -72,10 +68,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+
 
   const markAllRead = () => {
     setReadIds(new Set(rawNotifications.map((n) => n.id)));
@@ -159,31 +152,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           })}
         </nav>
 
-        {/* Sidebar Footer / User Info */}
-        <div className="p-4 border-t border-border bg-muted/30">
-          <div className="flex items-center gap-3 px-2 py-1 mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full gradient-primary text-white font-bold shadow-card">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
-              <p className="text-xs text-muted-foreground truncate">{email}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card text-sm font-semibold text-destructive hover:bg-destructive hover:text-white transition-all duration-200 cursor-pointer shadow-card"
-          >
-            <LogOut size={16} />
-            Log Out
-          </button>
-        </div>
+
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-        {/* Top Header */}
-        <header className="flex h-16 items-center justify-between px-6 border-b border-border bg-card/85 backdrop-blur-md sticky top-0 z-30">
+        <header className={`flex h-16 items-center justify-between px-6 border-b border-border bg-card/85 backdrop-blur-md sticky top-0 transition-all duration-200 ${
+          showNotifications ? 'z-[60]' : 'z-30'
+        }`}>
           {/* Left: Mobile Toggle & Page Context */}
           <div className="flex items-center gap-4">
             <button
@@ -229,7 +205,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 setShowNotifications(false);
               }}
               onClose={() => setShowProfileMenu(false)}
-              onLogout={handleLogout}
             />
           </div>
         </header>

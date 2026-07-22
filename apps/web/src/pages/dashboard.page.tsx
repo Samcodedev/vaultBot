@@ -33,8 +33,8 @@ export default function Dashboard() {
         const data = await planApi.getPlans(token);
         setPlans(data);
 
-        const txData = await transactionApi.getTransactions(token);
-        setTransactions(txData);
+        const txData = await transactionApi.getTransactions(token, { all: true });
+        setTransactions(txData.transactions);
       } catch (err) {
         console.error('Failed to load dashboard statistics', err);
       } finally {
@@ -116,20 +116,21 @@ export default function Dashboard() {
       };
     });
 
-    const firstTxDate = new Date(completedTxs[0].date);
-    const startPointDate = new Date(firstTxDate);
-    startPointDate.setDate(firstTxDate.getDate() - 1);
+    const recentDataPoints = dataPoints.slice(-10);
+    const initialSavings = recentDataPoints.length > 0
+      ? recentDataPoints[0].Savings - recentDataPoints[0].txAmount
+      : 0;
 
     const startPoint = {
       name: `Initial Balance • Start • system`,
       dateLabel: 'Initial Balance',
-      Savings: 0,
+      Savings: initialSavings,
       txAmount: 0,
       txTitle: 'Vault Setup',
       txType: 'system',
     };
 
-    return [startPoint, ...dataPoints];
+    return [startPoint, ...recentDataPoints];
   };
 
   const growthData = getGrowthData();
@@ -176,8 +177,6 @@ export default function Dashboard() {
     (t) => t.type === 'auto-save' && t.status === 'completed',
   );
   const totalAutoSaved = autoSaveTransactions.reduce((acc, curr) => acc + curr.amount, 0);
-  const avgAutoSaveAmount =
-    autoSaveTransactions.length > 0 ? totalAutoSaved / autoSaveTransactions.length : 0;
 
   const totalTargetAmount = plans.reduce((acc, curr) => acc + curr.targetAmount, 0);
   const hasAutoSaveData = totalAutoSaved > 0;
@@ -208,7 +207,7 @@ export default function Dashboard() {
       label: hasAutoSaveData ? 'Total Target Goal' : 'Total Auto-Saved',
       value: formatCurrency(hasAutoSaveData ? totalTargetAmount : totalAutoSaved),
       subtext: hasAutoSaveData
-        ? `Avg debit size: ${formatCurrency(avgAutoSaveAmount)}`
+        ? `Total amount left: ${formatCurrency(totalTargetAmount - totalSaved)}`
         : `Target amount for all plans`,
       icon: TrendingUp,
       color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
@@ -283,7 +282,9 @@ export default function Dashboard() {
               <div>
                 <h3 className="font-bold text-foreground text-base">Savings Trend</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Cumulative progress this year
+                  {transactions.filter((t) => t.status === 'completed').length > 10
+                    ? 'Last 10 transactions'
+                    : 'Cumulative progress this year'}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full">
@@ -457,8 +458,11 @@ export default function Dashboard() {
                   ) : (
                     transactions.slice(0, 4).map((tx) => (
                       <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 pr-6 whitespace-nowrap font-bold text-foreground">
-                          {tx.planTitle}
+                        <td
+                          className="py-3 pr-6 whitespace-nowrap font-bold text-foreground truncate max-w-[150px]"
+                          title={tx.planTitle}
+                        >
+                          {tx.planTitle.length > 20 ? `${tx.planTitle.slice(0, 20)}...` : tx.planTitle}
                         </td>
                         <td className="py-3 pr-6 whitespace-nowrap text-emerald-600 dark:text-emerald-400">
                           +{formatCurrency(tx.amount)}

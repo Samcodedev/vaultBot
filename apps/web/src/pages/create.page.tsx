@@ -308,13 +308,12 @@ export default function CreatePlan() {
                 {steps.map((s, i) => (
                   <div key={s} className="flex items-center gap-1 shrink-0">
                     <div
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                        i <= step
-                          ? form.savingPlan === 'fantasy-savings'
-                            ? 'bg-emerald-500 text-white shadow-card'
-                            : 'gradient-primary text-white shadow-card'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${i <= step
+                        ? form.savingPlan === 'fantasy-savings'
+                          ? 'bg-emerald-500 text-white shadow-card'
+                          : 'gradient-primary text-white shadow-card'
+                        : 'bg-muted text-muted-foreground'
+                        }`}
                     >
                       {i < step ? <Check size={14} /> : i + 1}
                     </div>
@@ -325,13 +324,12 @@ export default function CreatePlan() {
                     </span>
                     {i < steps.length - 1 && (
                       <div
-                        className={`h-0.5 w-4 rounded transition-colors ${
-                          i < step
-                            ? form.savingPlan === 'fantasy-savings'
-                              ? 'bg-emerald-500'
-                              : 'bg-primary'
-                            : 'bg-muted'
-                        }`}
+                        className={`h-0.5 w-4 rounded transition-colors ${i < step
+                          ? form.savingPlan === 'fantasy-savings'
+                            ? 'bg-emerald-500'
+                            : 'bg-primary'
+                          : 'bg-muted'
+                          }`}
                       />
                     )}
                   </div>
@@ -356,7 +354,7 @@ export default function CreatePlan() {
                         <span>
                           {form.savingPlan === 'fantasy-savings'
                             ? 'Link your football team, details, and target'
-                            : 'Set your savings goal details & target'}
+                            : 'Set savings goal & target'}
                         </span>
                       </div>
 
@@ -492,11 +490,10 @@ export default function CreatePlan() {
                             key={t.value}
                             type="button"
                             onClick={() => update('savingType', t.value)}
-                            className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
-                              form.savingType === t.value
-                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                                : 'border-border bg-card hover:border-primary/30'
-                            }`}
+                            className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${form.savingType === t.value
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                              : 'border-border bg-card hover:border-primary/30'
+                              }`}
                           >
                             <p className="text-sm font-bold text-card-foreground">{t.label}</p>
                             <p className="text-xs text-muted-foreground mt-1 font-semibold">
@@ -534,7 +531,7 @@ export default function CreatePlan() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-primary mb-2 font-bold text-sm uppercase tracking-wider">
                         <Calendar size={18} />
-                        <span>Set the schedule & debit time</span>
+                        <span>Set schedule & debit time</span>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -715,9 +712,8 @@ export default function CreatePlan() {
                   <button
                     type="button"
                     onClick={next}
-                    className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1 ${
-                      form.savingPlan === 'fantasy-savings' ? 'bg-emerald-500' : 'gradient-primary'
-                    }`}
+                    className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold shadow-elevated hover:opacity-95 transition-all cursor-pointer flex items-center gap-1 ${form.savingPlan === 'fantasy-savings' ? 'bg-emerald-500' : 'gradient-primary'
+                      }`}
                   >
                     Next <ArrowRight size={14} />
                   </button>

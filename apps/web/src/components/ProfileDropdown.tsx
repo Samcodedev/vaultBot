@@ -1,4 +1,4 @@
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
@@ -8,7 +8,6 @@ interface ProfileDropdownProps {
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
-  onLogout: () => void;
 }
 
 export default function ProfileDropdown({
@@ -17,7 +16,6 @@ export default function ProfileDropdown({
   isOpen,
   onToggle,
   onClose,
-  onLogout,
 }: ProfileDropdownProps) {
   return (
     <div className="relative">
@@ -53,13 +51,6 @@ export default function ProfileDropdown({
                 <UserIcon size={16} />
                 My Profile
               </Link>
-              <button
-                onClick={onLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive text-left cursor-pointer transition-colors border-t border-border mt-1.5 pt-2"
-              >
-                <LogOut size={16} />
-                Log Out
-              </button>
             </motion.div>
           </>
         )}

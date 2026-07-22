@@ -8,4 +8,6 @@ export type {
   MandateStatusResponse,
   MandateDetailsResponse,
   DebitMandateResponse,
+  PaginationMetadata,
+  PaginatedTransactions,
 } from '../../../../types';
